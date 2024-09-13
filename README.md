@@ -66,20 +66,6 @@
 
    This command compiles the Go program and generates an executable named `repo-to-txt` in the current directory.
 
-### Using Pre-built Binaries
-
-Pre-built binaries may be available for different operating systems. Check the [Releases](https://github.com/vytautas-bunevicius/repo-to-txt/releases) section of the repository to download the appropriate binary for your system.
-
-1. **Download the Binary**
-
-   Navigate to the [Releases](https://github.com/vytautas-bunevicius/repo-to-txt/releases) page and download the binary corresponding to your operating system.
-
-2. **Make the Binary Executable (Unix-like systems)**
-
-   ```sh
-   chmod +x repo-to-txt
-   ```
-
 ### Making repo-to-txt Globally Accessible
 
 To run `repo-to-txt` from any directory, you need to add the directory containing the executable to your system's `PATH` environment variable.
