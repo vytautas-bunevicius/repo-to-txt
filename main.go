@@ -25,7 +25,7 @@ import (
 )
 
 // Version is the current version of the tool.
-const Version = "1.0.1"
+const Version = "1.1.0"
 
 // Config holds the configuration for the CLI tool.
 type Config struct {
@@ -37,6 +37,7 @@ type Config struct {
 	SSHPassphrase       string
 	ExcludeFolders      []string
 	IncludeExt          []string
+	OutputDir           string
 }
 
 // AuthMethod represents the type of authentication to use.
@@ -68,6 +69,7 @@ func init() {
 	flag.StringVar(&config.Username, "username", "", "GitHub username (for HTTPS)")
 	flag.StringVar(&config.PersonalAccessToken, "pat", "", "GitHub Personal Access Token (for HTTPS)")
 	flag.StringVar(&config.SSHKeyPath, "ssh-key", "", "Path to SSH private key (for SSH)")
+	flag.StringVar(&config.OutputDir, "output-dir", "", "Output directory for the generated text file")
 	var excludeFolders, includeExt string
 	flag.StringVar(&excludeFolders, "exclude", "", "Comma-separated list of folders to exclude from the output")
 	flag.StringVar(&includeExt, "include-ext", "", "Comma-separated list of file extensions to include (e.g., .go,.md). If not set, defaults to excluding certain non-code files like .ipynb")
@@ -114,7 +116,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error extracting repository name: %v", err)
 	}
-	outputFile := fmt.Sprintf("%s%s", repoName, defaultOutputExt)
+
+	outputFile := filepath.Join(config.OutputDir, fmt.Sprintf("%s%s", repoName, defaultOutputExt))
 
 	tempDir, err := os.MkdirTemp("", defaultCloneDir)
 	if err != nil {
@@ -163,6 +166,10 @@ func promptForMissingInputs() error {
 		if isSSHKeyPassphraseProtected(config.SSHKeyPath) {
 			config.SSHPassphrase = promptForPassword("Enter your SSH key passphrase (leave empty if none):")
 		}
+	}
+
+	if config.OutputDir == "" {
+		config.OutputDir = promptForInputWithDefault("Enter the output directory", ".")
 	}
 
 	if len(config.ExcludeFolders) == 0 {
@@ -409,8 +416,9 @@ func writeRepoContentsToFile(repoPath, outputFile string, excludeFolders, includ
 		if err != nil {
 			return fmt.Errorf("error accessing path %s: %w", path, err)
 		}
+
 		if info.IsDir() || strings.HasPrefix(info.Name(), ".") {
-			return nil
+			return nil // Skip directories and hidden files
 		}
 
 		relPath, err := filepath.Rel(repoPath, path)
@@ -419,13 +427,13 @@ func writeRepoContentsToFile(repoPath, outputFile string, excludeFolders, includ
 		}
 
 		if shouldExcludeFile(relPath, excludeFolders, includeExt) {
-			return nil
+			return nil // Skip excluded files
 		}
 
 		content, err := readFileContent(path)
 		if err != nil {
 			log.Printf("Skipping file %s: %v", relPath, err)
-			return nil
+			return nil // Skip files that cannot be read or are binary
 		}
 
 		return writeFileContent(writer, relPath, content)

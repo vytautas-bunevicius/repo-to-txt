@@ -1,6 +1,6 @@
 # repo-to-txt
 
-**repo-to-txt** is a versatile Command-Line Interface (CLI) tool written in Go that consolidates all contents of a GitHub repository into a single `.txt` file. The output file is automatically named after the repository, ensuring organized and easily identifiable documentation of repository contents.
+**repo-to-txt** is a versatile Command-Line Interface (CLI) tool written in Go that consolidates all contents of a GitHub repository into a single `.txt` file. The output file is automatically named after the repository and can be saved to a specified directory, ensuring organized and easily identifiable documentation of repository contents.
 
 ## Table of Contents
 
@@ -9,6 +9,7 @@
 - [Installation](#installation)
   - [Building from Source](#building-from-source)
   - [Using Pre-built Binaries](#using-pre-built-binaries)
+  - [Making repo-to-txt Globally Accessible](#making-repo-to-txt-globally-accessible)
 - [Usage](#usage)
   - [Interactive Mode](#interactive-mode)
   - [Command-Line Flags](#command-line-flags)
@@ -29,6 +30,7 @@
 ## Features
 
 - **Automatic Output Naming**: Generates a `.txt` file named after the repository.
+- **Customizable Output Directory**: Allows specifying the directory where the output file should be saved.
 - **Single Consolidated File**: Merges all repository contents into one `.txt` file with clear file path separators.
 - **Support for Public and Private Repositories**: Clone public repositories without authentication or private repositories using HTTPS or SSH.
 - **Excluding Specific Folders**: Specify folders to exclude from the output using command-line flags or interactive prompts.
@@ -64,14 +66,6 @@
 
    This command compiles the Go program and generates an executable named `repo-to-txt` in the current directory.
 
-3. **(Optional) Move Executable to PATH**
-
-   To run `repo-to-txt` from anywhere, move it to a directory that's in your system's PATH, such as `/usr/local/bin` on Unix-based systems.
-
-   ```sh
-   sudo mv repo-to-txt /usr/local/bin/
-   ```
-
 ### Using Pre-built Binaries
 
 Pre-built binaries may be available for different operating systems. Check the [Releases](https://github.com/vytautas-bunevicius/repo-to-txt/releases) section of the repository to download the appropriate binary for your system.
@@ -80,17 +74,41 @@ Pre-built binaries may be available for different operating systems. Check the [
 
    Navigate to the [Releases](https://github.com/vytautas-bunevicius/repo-to-txt/releases) page and download the binary corresponding to your operating system.
 
-2. **Make the Binary Executable**
+2. **Make the Binary Executable (Unix-like systems)**
 
    ```sh
    chmod +x repo-to-txt
    ```
 
-3. **Move Executable to PATH**
+### Making repo-to-txt Globally Accessible
 
+To run `repo-to-txt` from any directory, you need to add the directory containing the executable to your system's `PATH` environment variable.
+
+**Unix-like systems (Linux, macOS):**
+
+1. **Move the executable to a directory in your PATH:**
+   Common locations include `/usr/local/bin` or `/usr/bin`.
    ```sh
    sudo mv repo-to-txt /usr/local/bin/
    ```
+
+2. **Alternatively, add the executable's current directory to your PATH:**
+   Open your shell's configuration file (e.g., `~/.bashrc` or `~/.zshrc`) and add the following line, replacing `/path/to` with the actual path to the executable:
+   ```bash
+   export PATH="$PATH:/path/to"
+   ```
+   Then, reload the shell configuration:
+   ```bash
+   source ~/.bashrc # or source ~/.zshrc
+   ```
+
+**Windows:**
+
+1. **Move the executable to a directory in your PATH:**
+   You can find the directories in your PATH by searching for "environment variables" in the Start menu and selecting "Edit the system environment variables".
+
+2. **Alternatively, add the executable's current directory to your PATH:**
+   Follow the instructions in the "Edit the PATH variable" section of the Windows instructions above.
 
 ## Usage
 
@@ -111,14 +129,15 @@ repo-to-txt
 
 ```
 Welcome to repo-to-txt!
-Enter the GitHub repository URL (HTTPS or SSH):: https://github.com/vytautas-bunevicius/web-comment-monitor.git
+Enter the GitHub repository URL (HTTPS or SSH): https://github.com/vytautas-bunevicius/web-comment-monitor.git
 ? Select authentication method:  [Use arrow keys]
 ❯ No Authentication
   HTTPS with PAT
   SSH
+Enter the output directory: /path/to/output
 Enter folders to exclude (comma-separated, leave empty to include all): vendor, tests
 Enter file extensions to include (comma-separated, leave empty to include all): .go,.md
-Repository contents written to web-comment-monitor.txt
+Repository contents written to /path/to/output/web-comment-monitor.txt
 ```
 
 ### Command-Line Flags
@@ -137,6 +156,7 @@ repo-to-txt -repo=<repository_url> -auth=<authentication_method> [additional_fla
 - `-pat`: GitHub Personal Access Token (required for HTTPS).
 - `-ssh-key`: Path to SSH private key (required for SSH).
 - `-ssh-passphrase`: Passphrase for SSH private key (if protected).
+- `-output-dir`: The directory where the output file should be saved. Defaults to the current directory.
 - `-exclude`: Comma-separated list of folders to exclude from the output.
 - `-include-ext`: Comma-separated list of file extensions to include (e.g., `.go,.md`). If not set, defaults to excluding certain non-code files like `.ipynb`.
 - `-version`: Print the version number and exit.
@@ -164,7 +184,7 @@ Use the `-exclude` flag followed by a comma-separated list of folder names to ex
 **Usage Example:**
 
 ```sh
-repo-to-txt -repo=https://github.com/vytautas-bunevicius/web-comment-monitor.git -auth=none -exclude="vendor,tests"
+repo-to-txt -repo=https://github.com/vytautas-bunevicius/web-comment-monitor.git -auth=none -output-dir=/path/to/output -exclude="vendor,tests"
 ```
 
 ## Including Specific File Extensions
@@ -178,7 +198,7 @@ Use the `-include-ext` flag followed by a comma-separated list of file extension
 **Usage Example:**
 
 ```sh
-repo-to-txt -repo=https://github.com/vytautas-bunevicius/web-comment-monitor.git -auth=none -include-ext=".go,.md"
+repo-to-txt -repo=https://github.com/vytautas-bunevicius/web-comment-monitor.git -auth=none -output-dir=/path/to/output -include-ext=".go,.md"
 ```
 
 **Note**: If `-include-ext` is not set, the tool defaults to excluding non-code files such as `.ipynb`.
@@ -192,7 +212,7 @@ Use this method to clone **public** repositories without providing any authentic
 **Usage Example:**
 
 ```sh
-repo-to-txt -repo=https://github.com/vytautas-bunevicius/web-comment-monitor.git -auth=none
+repo-to-txt -repo=https://github.com/vytautas-bunevicius/web-comment-monitor.git -auth=none -output-dir=/path/to/output
 ```
 
 ### HTTPS Authentication with PAT
@@ -202,7 +222,7 @@ Use this method to clone **private** repositories using your GitHub username and
 **Usage Example:**
 
 ```sh
-repo-to-txt -repo=https://github.com/your-username/private-repo.git -auth=https -username=your_username -pat=your_PAT
+repo-to-txt -repo=https://github.com/your-username/private-repo.git -auth=https -username=your_username -pat=your_PAT -output-dir=/path/to/output
 ```
 
 **Security Note**: Be cautious when using command-line flags to provide sensitive information like PATs, as they can be exposed in process listings. Consider using environment variables or interactive prompts for improved security.
@@ -214,7 +234,7 @@ Use this method to clone **private** repositories using SSH keys.
 **Usage Example:**
 
 ```sh
-repo-to-txt -repo=git@github.com:your-username/private-repo.git -auth=ssh -ssh-key=/path/to/id_rsa -ssh-passphrase="your_passphrase" -exclude="vendor,tests"
+repo-to-txt -repo=git@github.com:your-username/private-repo.git -auth=ssh -ssh-key=/path/to/id_rsa -ssh-passphrase="your_passphrase" -output-dir=/path/to/output -exclude="vendor,tests"
 ```
 
 **Prerequisites**:
@@ -225,10 +245,10 @@ repo-to-txt -repo=git@github.com:your-username/private-repo.git -auth=ssh -ssh-k
 
 ## Examples
 
-### 1. Cloning a Public Repository Without Authentication and Excluding Folders
+### 1. Cloning a Public Repository Without Authentication and Excluding Folders to a Specific Directory
 
 ```sh
-repo-to-txt -repo=https://github.com/vytautas-bunevicius/web-comment-monitor.git -auth=none -exclude="vendor,tests"
+repo-to-txt -repo=https://github.com/vytautas-bunevicius/web-comment-monitor.git -auth=none -output-dir=/path/to/output -exclude="vendor,tests"
 ```
 
 **Output**:
@@ -237,13 +257,13 @@ repo-to-txt -repo=https://github.com/vytautas-bunevicius/web-comment-monitor.git
 Welcome to repo-to-txt!
 Cloning repository https://github.com/vytautas-bunevicius/web-comment-monitor.git...
 ...
-Repository contents written to web-comment-monitor.txt
+Repository contents written to /path/to/output/web-comment-monitor.txt
 ```
 
-### 2. Cloning a Private Repository Using HTTPS Authentication and Excluding Folders
+### 2. Cloning a Private Repository Using HTTPS Authentication and Excluding Folders to a Specific Directory
 
 ```sh
-repo-to-txt -repo=https://github.com/your-username/private-repo.git -auth=https -username=your_username -pat=your_PAT -exclude="vendor,tests"
+repo-to-txt -repo=https://github.com/your-username/private-repo.git -auth=https -username=your_username -pat=your_PAT -output-dir=/path/to/output -exclude="vendor,tests"
 ```
 
 **Output**:
@@ -252,13 +272,13 @@ repo-to-txt -repo=https://github.com/your-username/private-repo.git -auth=https 
 Welcome to repo-to-txt!
 Cloning repository https://github.com/your-username/private-repo.git...
 ...
-Repository contents written to private-repo.txt
+Repository contents written to /path/to/output/private-repo.txt
 ```
 
-### 3. Cloning a Private Repository Using SSH Authentication Without Excluding Any Folders
+### 3. Cloning a Private Repository Using SSH Authentication Without Excluding Any Folders to a Specific Directory
 
 ```sh
-repo-to-txt -repo=git@github.com:your-username/private-repo.git -auth=ssh -ssh-key=/path/to/id_rsa
+repo-to-txt -repo=git@github.com:your-username/private-repo.git -auth=ssh -ssh-key=/path/to/id_rsa -output-dir=/path/to/output
 ```
 
 **Output**:
@@ -267,10 +287,10 @@ repo-to-txt -repo=git@github.com:your-username/private-repo.git -auth=ssh -ssh-k
 Welcome to repo-to-txt!
 Cloning repository git@github.com:your-username/private-repo.git...
 ...
-Repository contents written to private-repo.txt
+Repository contents written to /path/to/output/private-repo.txt
 ```
 
-### 4. Using Interactive Mode with Exclusions
+### 4. Using Interactive Mode with Exclusions and Specifying Output Directory
 
 Run the tool without any flags and follow the interactive prompts.
 
@@ -282,22 +302,23 @@ repo-to-txt
 
 ```
 Welcome to repo-to-txt!
-Enter the GitHub repository URL (HTTPS or SSH):: https://github.com/vytautas-bunevicius/web-comment-monitor.git
+Enter the GitHub repository URL (HTTPS or SSH): https://github.com/vytautas-bunevicius/web-comment-monitor.git
 ? Select authentication method:  [Use arrow keys]
 ❯ No Authentication
   HTTPS with PAT
   SSH
+Enter the output directory: /path/to/output
 Enter folders to exclude (comma-separated, leave empty to include all): vendor, tests
 Enter file extensions to include (comma-separated, leave empty to include all): .go,.md
-Repository contents written to web-comment-monitor.txt
+Repository contents written to /path/to/output/web-comment-monitor.txt
 ```
 
-### 5. Including Specific File Extensions
+### 5. Including Specific File Extensions and Specifying Output Directory
 
-Clone a repository and include only `.go` and `.md` files in the output.
+Clone a repository and include only `.go` and `.md` files in the output, saving it to a specific directory.
 
 ```sh
-repo-to-txt -repo=https://github.com/vytautas-bunevicius/web-comment-monitor.git -auth=none -include-ext=".go,.md"
+repo-to-txt -repo=https://github.com/vytautas-bunevicius/web-comment-monitor.git -auth=none -output-dir=/path/to/output -include-ext=".go,.md"
 ```
 
 **Output**:
@@ -306,15 +327,15 @@ repo-to-txt -repo=https://github.com/vytautas-bunevicius/web-comment-monitor.git
 Welcome to repo-to-txt!
 Cloning repository https://github.com/vytautas-bunevicius/web-comment-monitor.git...
 ...
-Repository contents written to web-comment-monitor.txt
+Repository contents written to /path/to/output/web-comment-monitor.txt
 ```
 
-### 6. Cloning a Repository with an SSH Key Passphrase
+### 6. Cloning a Repository with an SSH Key Passphrase and Specifying Output Directory
 
-If your SSH key is protected with a passphrase, provide it using the `-ssh-passphrase` flag.
+If your SSH key is protected with a passphrase, provide it using the `-ssh-passphrase` flag and specify the output directory.
 
 ```sh
-repo-to-txt -repo=git@github.com:your-username/private-repo.git -auth=ssh -ssh-key=/path/to/id_rsa -ssh-passphrase="your_passphrase"
+repo-to-txt -repo=git@github.com:your-username/private-repo.git -auth=ssh -ssh-key=/path/to/id_rsa -ssh-passphrase="your_passphrase" -output-dir=/path/to/output
 ```
 
 **Output**:
@@ -323,7 +344,7 @@ repo-to-txt -repo=git@github.com:your-username/private-repo.git -auth=ssh -ssh-k
 Welcome to repo-to-txt!
 Cloning repository git@github.com:your-username/private-repo.git...
 ...
-Repository contents written to private-repo.txt
+Repository contents written to /path/to/output/private-repo.txt
 ```
 
 ## Error Handling
