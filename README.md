@@ -35,7 +35,10 @@
 - **Including Specific File Extensions**: Optionally include only specified file extensions to focus on relevant files.
 - **Flexible Input Methods**: Supports both interactive prompts and command-line flags for providing inputs.
 - **Cross-Platform Compatibility**: Works seamlessly on Windows, macOS, and Linux.
-- **Security**: Handles sensitive information like Personal Access Tokens (PATs) securely.
+- **Security Enhancements**:
+  - Handles sensitive information like Personal Access Tokens (PATs) securely.
+  - Supports SSH keys with passphrases, enhancing SSH authentication security.
+- **Improved Error Handling and Logging**: Provides more descriptive error messages to aid in troubleshooting.
 
 ## Prerequisites
 
@@ -114,6 +117,7 @@ Enter the GitHub repository URL (HTTPS or SSH):: https://github.com/vytautas-bun
   HTTPS with PAT
   SSH
 Enter folders to exclude (comma-separated, leave empty to include all): vendor, tests
+Enter file extensions to include (comma-separated, leave empty to include all): .go,.md
 Repository contents written to web-comment-monitor.txt
 ```
 
@@ -132,8 +136,10 @@ repo-to-txt -repo=<repository_url> -auth=<authentication_method> [additional_fla
 - `-username`: GitHub username (required for HTTPS).
 - `-pat`: GitHub Personal Access Token (required for HTTPS).
 - `-ssh-key`: Path to SSH private key (required for SSH).
+- `-ssh-passphrase`: Passphrase for SSH private key (if protected).
 - `-exclude`: Comma-separated list of folders to exclude from the output.
 - `-include-ext`: Comma-separated list of file extensions to include (e.g., `.go,.md`). If not set, defaults to excluding certain non-code files like `.ipynb`.
+- `-version`: Print the version number and exit.
 
 **Note**: The output file is automatically named after the repository (e.g., `repository-name.txt`).
 
@@ -208,13 +214,14 @@ Use this method to clone **private** repositories using SSH keys.
 **Usage Example:**
 
 ```sh
-repo-to-txt -repo=git@github.com:your-username/private-repo.git -auth=ssh -ssh-key=/path/to/id_rsa -exclude="vendor,tests"
+repo-to-txt -repo=git@github.com:your-username/private-repo.git -auth=ssh -ssh-key=/path/to/id_rsa -ssh-passphrase="your_passphrase" -exclude="vendor,tests"
 ```
 
 **Prerequisites**:
 
 - Ensure that your SSH key is added to your GitHub account.
 - The default SSH key path is `~/.ssh/id_rsa`. If your key is located elsewhere, specify the path using the `-ssh-key` flag.
+- If your SSH key is protected with a passphrase, provide it using the `-ssh-passphrase` flag. If your key does not have a passphrase, you can omit this flag.
 
 ## Examples
 
@@ -281,6 +288,7 @@ Enter the GitHub repository URL (HTTPS or SSH):: https://github.com/vytautas-bun
   HTTPS with PAT
   SSH
 Enter folders to exclude (comma-separated, leave empty to include all): vendor, tests
+Enter file extensions to include (comma-separated, leave empty to include all): .go,.md
 Repository contents written to web-comment-monitor.txt
 ```
 
@@ -301,6 +309,23 @@ Cloning repository https://github.com/vytautas-bunevicius/web-comment-monitor.gi
 Repository contents written to web-comment-monitor.txt
 ```
 
+### 6. Cloning a Repository with an SSH Key Passphrase
+
+If your SSH key is protected with a passphrase, provide it using the `-ssh-passphrase` flag.
+
+```sh
+repo-to-txt -repo=git@github.com:your-username/private-repo.git -auth=ssh -ssh-key=/path/to/id_rsa -ssh-passphrase="your_passphrase"
+```
+
+**Output**:
+
+```
+Welcome to repo-to-txt!
+Cloning repository git@github.com:your-username/private-repo.git...
+...
+Repository contents written to private-repo.txt
+```
+
 ## Error Handling
 
 The tool provides descriptive error messages to help you troubleshoot issues. Common errors include:
@@ -309,6 +334,7 @@ The tool provides descriptive error messages to help you troubleshoot issues. Co
 - **Authentication Failures**: Verify your authentication credentials or SSH key.
 - **Network Issues**: Check your internet connection and firewall settings.
 - **Permission Issues**: Ensure you have the necessary permissions to clone the repository and write to the output directory.
+- **SSH Passphrase Errors**: If using an SSH key with a passphrase, ensure that the passphrase is correct.
 
 **Example Error Message:**
 
@@ -321,3 +347,4 @@ The tool provides descriptive error messages to help you troubleshoot issues. Co
 - If cloning a **public** repository, select "No Authentication" to avoid unnecessary authentication errors.
 - Ensure that your PAT has the necessary scopes if using HTTPS authentication.
 - Verify that your SSH key is correctly added to your GitHub account if using SSH authentication.
+- If your SSH key is passphrase-protected, ensure that the correct passphrase is provided.
