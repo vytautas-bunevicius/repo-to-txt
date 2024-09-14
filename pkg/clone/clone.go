@@ -15,28 +15,35 @@ import (
 
 // ExtractRepoName extracts the repository name from the repository URL.
 func ExtractRepoName(repoURL string) (string, error) {
-	u, err := url.Parse(repoURL)
-	if err != nil {
-		return "", fmt.Errorf("invalid repository URL: %w", err)
-	}
-
-	if u.Scheme == "" && strings.Contains(repoURL, "@") && strings.Contains(repoURL, ":") {
-		parts := strings.Split(repoURL, ":")
-		if len(parts) != 2 {
-			return "", errors.New("invalid SSH repository URL format")
-		}
-		repoPath := strings.TrimSuffix(parts[1], ".git")
-		return filepath.Base(repoPath), nil
-	}
-
-	repoPath := strings.TrimSuffix(u.Path, ".git")
-	repoName := filepath.Base(repoPath)
-	if repoName == "" {
-		return "", errors.New("could not determine repository name from URL")
-	}
-	return repoName, nil
+    if strings.HasPrefix(repoURL, "git@") {
+        // Handle SSH URLs
+        parts := strings.SplitN(repoURL, ":", 2)
+        if len(parts) != 2 {
+            return "", errors.New("invalid SSH repository URL format")
+        }
+        path := parts[1]
+        repoPath := strings.TrimSuffix(path, ".git")
+        repoName := filepath.Base(repoPath)
+        if repoName == "" {
+            return "", errors.New("could not determine repository name from URL")
+        }
+        return repoName, nil
+    } else if strings.HasPrefix(repoURL, "https://") || strings.HasPrefix(repoURL, "http://") {
+        // Handle HTTPS URLs
+        u, err := url.Parse(repoURL)
+        if err != nil {
+            return "", fmt.Errorf("invalid repository URL: %w", err)
+        }
+        repoPath := strings.TrimSuffix(u.Path, ".git")
+        repoName := filepath.Base(repoPath)
+        if repoName == "" {
+            return "", errors.New("could not determine repository name from URL")
+        }
+        return repoName, nil
+    } else {
+        return "", errors.New("invalid repository URL format")
+    }
 }
-
 // CloneOrPullRepo clones the repository if it doesn't exist locally or pulls the latest changes if it does.
 func CloneOrPullRepo(ctx context.Context, repoURL, repoPath string, auth transport.AuthMethod) error {
 	fmt.Printf("Cloning repository: %s\n", repoURL)
