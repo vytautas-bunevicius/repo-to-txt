@@ -1,3 +1,4 @@
+// Package output_test contains unit tests for the output package.
 package output
 
 import (
@@ -8,6 +9,8 @@ import (
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/config"
 )
 
+// TestWriteRepoContentsToFile verifies that the WriteRepoContentsToFile function
+// successfully writes repository contents to an output file based on the configuration.
 func TestWriteRepoContentsToFile(t *testing.T) {
 	tempDir := t.TempDir()
 	outputFile := filepath.Join(tempDir, "output.txt")

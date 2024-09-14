@@ -1,3 +1,5 @@
+// Package output manages the generation of the output text file containing repository contents.
+// It handles writing file contents to the output file with appropriate formatting and exclusions.
 package output
 
 import (
@@ -15,7 +17,16 @@ import (
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/util"
 )
 
-// WriteRepoContentsToFile writes the contents of the repository to the specified output file.
+// WriteRepoContentsToFile writes the contents of the specified repository directory to an output file.
+// It traverses the repository, applies exclusion rules, and formats the output with file separators.
+//
+// Parameters:
+//   - repoPath: The local path of the cloned repository.
+//   - outputFile: The path to the output text file.
+//   - cfg: A pointer to the Config struct containing exclusion and inclusion rules.
+//
+// Returns:
+//   - error: An error if writing to the file fails.
 func WriteRepoContentsToFile(repoPath, outputFile string, cfg *config.Config) error {
 	file, err := os.Create(outputFile)
 	if err != nil {
@@ -54,7 +65,15 @@ func WriteRepoContentsToFile(repoPath, outputFile string, cfg *config.Config) er
 	})
 }
 
-// shouldExcludeFile determines if a file should be excluded based on its path and extension.
+// shouldExcludeFile determines whether a file should be excluded based on its relative path and extension.
+// It checks against the excluded folders and included extensions specified in the configuration.
+//
+// Parameters:
+//   - relPath: The relative path of the file within the repository.
+//   - cfg: A pointer to the Config struct containing exclusion and inclusion rules.
+//
+// Returns:
+//   - bool: True if the file should be excluded, false otherwise.
 func shouldExcludeFile(relPath string, cfg *config.Config) bool {
 	normalizedRelPath := filepath.ToSlash(relPath)
 	for _, exclude := range cfg.ExcludeFolders {
@@ -75,7 +94,15 @@ func shouldExcludeFile(relPath string, cfg *config.Config) bool {
 	return strings.HasSuffix(strings.ToLower(relPath), config.DefaultExcludedExt)
 }
 
-// readFileContent reads the content of the file if it's a text file.
+// readFileContent reads and returns the content of a file if it is a text file.
+// It skips binary files by checking for null bytes.
+//
+// Parameters:
+//   - path: The file system path to the file.
+//
+// Returns:
+//   - []byte: The content of the file.
+//   - error: An error if the file cannot be read or is identified as binary.
 func readFileContent(path string) ([]byte, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -99,7 +126,16 @@ func readFileContent(path string) ([]byte, error) {
 	return io.ReadAll(file)
 }
 
-// writeFileContent writes the content of a file to the output writer.
+// writeFileContent writes the content of a file to the output writer with appropriate formatting.
+// It adds a separator with the relative file path before the content.
+//
+// Parameters:
+//   - writer: The buffered writer for the output file.
+//   - relPath: The relative path of the file within the repository.
+//   - content: The content of the file.
+//
+// Returns:
+//   - error: An error if writing to the output file fails.
 func writeFileContent(writer *bufio.Writer, relPath string, content []byte) error {
 	separator := fmt.Sprintf("=== %s ===\n", relPath)
 	if _, err := io.WriteString(writer, separator); err != nil {
@@ -114,7 +150,13 @@ func writeFileContent(writer *bufio.Writer, relPath string, content []byte) erro
 	return nil
 }
 
-// isBinary checks if the file content is binary.
+// isBinary checks if the provided byte slice contains any null bytes, indicating a binary file.
+//
+// Parameters:
+//   - data: The byte slice to check.
+//
+// Returns:
+//   - bool: True if the data is binary, false otherwise.
 func isBinary(data []byte) bool {
 	return bytes.IndexByte(data, 0) != -1
 }

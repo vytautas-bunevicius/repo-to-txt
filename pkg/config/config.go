@@ -1,3 +1,5 @@
+// Package config handles the configuration for the repo-to-txt CLI tool.
+// It parses command-line flags and manages authentication and output settings.
 package config
 
 import (
@@ -28,10 +30,14 @@ const (
 // AuthMethod represents the type of authentication to use.
 type AuthMethod int
 
-// Authentication methods.
 const (
+	// AuthMethodNone indicates no authentication.
 	AuthMethodNone AuthMethod = iota
+
+	// AuthMethodHTTPS indicates HTTPS authentication.
 	AuthMethodHTTPS
+
+	// AuthMethodSSH indicates SSH authentication.
 	AuthMethodSSH
 )
 
@@ -50,12 +56,16 @@ type Config struct {
 	VersionFlag         bool
 }
 
-// NewConfig creates a new Config instance.
+// NewConfig creates a new Config instance with default values.
 func NewConfig() *Config {
 	return &Config{}
 }
 
-// ParseFlags parses command-line flags into the Config struct.
+// ParseFlags parses command-line flags and populates the Config struct.
+// It handles required flags, default values, and validates authentication methods.
+//
+// Returns:
+//   - error: An error if flag parsing or validation fails.
 func (cfg *Config) ParseFlags() error {
 	var authMethod string
 	var excludeFolders, includeExt string
@@ -100,7 +110,13 @@ func (cfg *Config) ParseFlags() error {
 	return nil
 }
 
-// Helper function to parse comma-separated values.
+// parseCommaSeparated splits a comma-separated string into a slice of trimmed strings.
+//
+// Parameters:
+//   - input: The comma-separated string.
+//
+// Returns:
+//   - []string: A slice of trimmed strings.
 func parseCommaSeparated(input string) []string {
 	if input == "" {
 		return nil

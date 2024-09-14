@@ -1,3 +1,5 @@
+// Package prompt manages interactive user prompts for missing configuration inputs.
+// It utilizes the huh library to create forms for collecting user input.
 package prompt
 
 import (
@@ -16,7 +18,14 @@ import (
 // ErrEmptyInput is returned when the user provides an empty input.
 var ErrEmptyInput = errors.New("input cannot be empty")
 
-// PromptForMissingInputs prompts the user for any missing configuration inputs.
+// PromptForMissingInputs prompts the user interactively for any missing configuration inputs.
+// It updates the provided Config struct with the collected inputs.
+//
+// Parameters:
+//   - cfg: A pointer to the Config struct to be populated.
+//
+// Returns:
+//   - error: An error if prompting fails or input validation fails.
 func PromptForMissingInputs(cfg *config.Config) error {
 	form := huh.NewForm(
 		huh.NewGroup(
@@ -129,7 +138,14 @@ func PromptForMissingInputs(cfg *config.Config) error {
 	return nil
 }
 
-// validateRepoURL validates the repository URL.
+// validateRepoURL validates the format of the provided GitHub repository URL.
+// It ensures that the URL is either a valid HTTPS or SSH GitHub repository URL.
+//
+// Parameters:
+//   - repoURL: The repository URL to validate.
+//
+// Returns:
+//   - error: An error if the URL is invalid.
 func validateRepoURL(repoURL string) error {
 	if strings.TrimSpace(repoURL) == "" {
 		return errors.New("repository URL cannot be empty")
@@ -149,7 +165,14 @@ func validateRepoURL(repoURL string) error {
 	return errors.New("URL must be either HTTPS (https://github.com/user/repo) or SSH (git@github.com:user/repo) format")
 }
 
-// isSSHKeyPassphraseProtected checks if the SSH key is passphrase protected.
+// isSSHKeyPassphraseProtected checks if the SSH key at the given path is protected by a passphrase.
+// It does this by looking for the "ENCRYPTED" keyword in the key file.
+//
+// Parameters:
+//   - keyPath: The file system path to the SSH private key.
+//
+// Returns:
+//   - bool: True if the key is passphrase protected, false otherwise.
 func isSSHKeyPassphraseProtected(keyPath string) bool {
 	file, err := os.Open(keyPath)
 	if err != nil {
@@ -168,7 +191,11 @@ func isSSHKeyPassphraseProtected(keyPath string) bool {
 	return strings.Contains(content, "ENCRYPTED")
 }
 
-// defaultSSHKeyPath returns the default SSH key path.
+// defaultSSHKeyPath returns the default path to the SSH private key.
+// It typically points to the user's home directory under .ssh/id_rsa.
+//
+// Returns:
+//   - string: The default SSH key path.
 func defaultSSHKeyPath() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -177,7 +204,11 @@ func defaultSSHKeyPath() string {
 	return filepath.Join(home, ".ssh", "id_rsa")
 }
 
-// defaultDownloadsPath returns the default downloads path.
+// defaultDownloadsPath returns the default path to the Downloads directory in the user's home.
+// If the home directory cannot be determined, it defaults to the current directory.
+//
+// Returns:
+//   - string: The default Downloads path.
 func defaultDownloadsPath() string {
 	home, err := os.UserHomeDir()
 	if err != nil {

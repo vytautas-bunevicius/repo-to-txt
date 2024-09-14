@@ -1,3 +1,4 @@
+// Package auth_test contains unit tests for the auth package.
 package auth
 
 import (
@@ -7,6 +8,8 @@ import (
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/config"
 )
 
+// TestSetupAuth verifies that the SetupAuth function correctly sets up the authentication method
+// based on different configuration scenarios.
 func TestSetupAuth(t *testing.T) {
 	cfg := &config.Config{
 		AuthMethod:          config.AuthMethodHTTPS,

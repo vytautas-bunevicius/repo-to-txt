@@ -1,3 +1,4 @@
+// Package prompt_test contains unit tests for the prompt package.
 package prompt
 
 import (
@@ -8,7 +9,8 @@ import (
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/config"
 )
 
-// TestValidateRepoURL tests the validateRepoURL function
+// TestValidateRepoURL verifies that the validateRepoURL function correctly validates
+// various repository URL formats.
 func TestValidateRepoURL(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -31,7 +33,8 @@ func TestValidateRepoURL(t *testing.T) {
 	}
 }
 
-// TestIsSSHKeyPassphraseProtected tests the isSSHKeyPassphraseProtected function
+// TestIsSSHKeyPassphraseProtected verifies that the isSSHKeyPassphraseProtected function
+// correctly identifies whether an SSH key is passphrase protected.
 func TestIsSSHKeyPassphraseProtected(t *testing.T) {
 	// Create a temporary file for testing
 	tmpfile, err := os.CreateTemp("", "test-ssh-key")
@@ -63,7 +66,7 @@ func TestIsSSHKeyPassphraseProtected(t *testing.T) {
 	}
 }
 
-// TestDefaultSSHKeyPath tests the defaultSSHKeyPath function
+// TestDefaultSSHKeyPath verifies that the defaultSSHKeyPath function returns the correct default SSH key path.
 func TestDefaultSSHKeyPath(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -75,7 +78,7 @@ func TestDefaultSSHKeyPath(t *testing.T) {
 	}
 }
 
-// TestDefaultDownloadsPath tests the defaultDownloadsPath function
+// TestDefaultDownloadsPath verifies that the defaultDownloadsPath function returns the correct default Downloads path.
 func TestDefaultDownloadsPath(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -87,7 +90,8 @@ func TestDefaultDownloadsPath(t *testing.T) {
 	}
 }
 
-// TestPromptForMissingInputs tests the PromptForMissingInputs function
+// TestPromptForMissingInputs is a placeholder for testing the PromptForMissingInputs function.
+// In a real scenario, you would mock the huh library to simulate user input.
 func TestPromptForMissingInputs(t *testing.T) {
 	// This is a basic test structure. In a real scenario, you'd need to mock the huh library,
 	// which is beyond the scope of this example. Here's a simplified version:
@@ -97,7 +101,4 @@ func TestPromptForMissingInputs(t *testing.T) {
 		t.Fatalf("PromptForMissingInputs() error = %v", err)
 	}
 
-	// In a real test, you'd assert on the values in cfg here.
-	// For now, we'll just check that the function ran without error.
-	// You may want to expand this test when you implement proper mocking.
 }

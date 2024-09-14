@@ -1,7 +1,10 @@
+// Package util_test contains unit tests for the util package.
 package util
 
 import "testing"
 
+// TestParseCommaSeparated verifies that the ParseCommaSeparated function correctly
+// splits and trims comma-separated strings into a slice.
 func TestParseCommaSeparated(t *testing.T) {
 	input := "a, b , c"
 	expected := []string{"a", "b", "c"}

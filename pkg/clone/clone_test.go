@@ -1,9 +1,12 @@
+// Package clone_test contains unit tests for the clone package.
 package clone
 
 import (
 	"testing"
 )
 
+// TestExtractRepoName verifies that the ExtractRepoName function correctly extracts
+// repository names from various URL formats.
 func TestExtractRepoName(t *testing.T) {
 	testCases := []struct {
 		repoURL  string

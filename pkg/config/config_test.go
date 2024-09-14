@@ -1,3 +1,4 @@
+// Package config_test contains unit tests for the config package.
 package config
 
 import (
@@ -5,6 +6,8 @@ import (
 	"testing"
 )
 
+// TestParseFlags verifies that the ParseFlags method correctly parses command-line flags
+// and populates the Config struct accordingly.
 func TestParseFlags(t *testing.T) {
 	originalArgs := os.Args
 	defer func() { os.Args = originalArgs }()
