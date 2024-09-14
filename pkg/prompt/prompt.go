@@ -4,15 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/manifoldco/promptui"
+	"github.com/charmbracelet/huh"
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/config"
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/util"
-	"golang.org/x/term"
 )
 
 // ErrEmptyInput is returned when the user provides an empty input.
@@ -20,33 +18,107 @@ var ErrEmptyInput = errors.New("input cannot be empty")
 
 // PromptForMissingInputs prompts the user for any missing configuration inputs.
 func PromptForMissingInputs(cfg *config.Config) error {
-	if cfg.RepoURL == "" {
-		cfg.RepoURL = promptForRepoURL()
-	}
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("GitHub repository URL (HTTPS or SSH)").
+				Value(&cfg.RepoURL).
+				Validate(validateRepoURL),
 
-	if !cfg.AuthFlagSet {
-		cfg.AuthMethod = promptForAuthMethod()
+			huh.NewSelect[config.AuthMethod]().
+				Title("Select authentication method").
+				Options(
+					huh.NewOption("No Authentication", config.AuthMethodNone),
+					huh.NewOption("HTTPS with PAT", config.AuthMethodHTTPS),
+					huh.NewOption("SSH", config.AuthMethodSSH),
+				).
+				Value(&cfg.AuthMethod),
+		),
+	)
+
+	err := form.Run()
+	if err != nil {
+		return fmt.Errorf("form input error: %w", err)
 	}
 
 	switch cfg.AuthMethod {
 	case config.AuthMethodHTTPS:
-		if cfg.Username == "" {
-			cfg.Username = promptForInput("Enter your GitHub username:")
-		}
-		if cfg.PersonalAccessToken == "" {
-			cfg.PersonalAccessToken = promptForPassword("Enter your GitHub Personal Access Token:")
-		}
+		httpsForm := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().
+					Title("GitHub username").
+					Value(&cfg.Username),
+				huh.NewInput().
+					Title("GitHub Personal Access Token").
+					Value(&cfg.PersonalAccessToken).
+					Password(true),
+			),
+		)
+		err = httpsForm.Run()
 	case config.AuthMethodSSH:
-		if cfg.SSHKeyPath == "" {
-			cfg.SSHKeyPath = promptForInputWithDefault("Enter the path to your SSH private key", defaultSSHKeyPath())
-		}
-		if isSSHKeyPassphraseProtected(cfg.SSHKeyPath) {
-			cfg.SSHPassphrase = promptForPassword("Enter your SSH key passphrase (leave empty if none):")
+		defaultSSHKeyPath := defaultSSHKeyPath()
+		sshForm := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().
+					Title("Path to SSH private key").
+					Value(&cfg.SSHKeyPath).
+					Placeholder(defaultSSHKeyPath).
+					Validate(func(s string) error {
+						if s == "" {
+							cfg.SSHKeyPath = defaultSSHKeyPath
+							return nil
+						}
+						return nil
+					}),
+			),
+		)
+		err = sshForm.Run()
+		if err == nil && isSSHKeyPassphraseProtected(cfg.SSHKeyPath) {
+			passphraseForm := huh.NewForm(
+				huh.NewGroup(
+					huh.NewInput().
+						Title("SSH key passphrase (leave empty if none)").
+						Value(&cfg.SSHPassphrase).
+						Password(true),
+				),
+			)
+			err = passphraseForm.Run()
 		}
 	}
 
+	if err != nil {
+		return fmt.Errorf("authentication input error: %w", err)
+	}
+
+	var excludeFolders, includeExt string
+	defaultOutputDir := defaultDownloadsPath()
+	outputForm := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Output directory").
+				Value(&cfg.OutputDir).
+				Placeholder(defaultOutputDir),
+			huh.NewInput().
+				Title("Folders to exclude (comma-separated, leave empty to include all)").
+				Value(&excludeFolders),
+			huh.NewInput().
+				Title("File extensions to include (comma-separated, leave empty to include all)").
+				Value(&includeExt),
+		),
+	)
+
+	err = outputForm.Run()
+	if err != nil {
+		return fmt.Errorf("output configuration error: %w", err)
+	}
+
+	// Process the comma-separated inputs
+	cfg.ExcludeFolders = util.ParseCommaSeparated(excludeFolders)
+	cfg.IncludeExt = util.ParseCommaSeparated(includeExt)
+
+	// Set default output directory if not provided
 	if cfg.OutputDir == "" {
-		cfg.OutputDir = promptForInputWithDefault("Enter the output directory", ".")
+		cfg.OutputDir = defaultOutputDir
 	}
 
 	// Ensure the output directory exists
@@ -54,111 +126,27 @@ func PromptForMissingInputs(cfg *config.Config) error {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	if len(cfg.ExcludeFolders) == 0 {
-		excludeInput := promptForInputWithDefault("Enter folders to exclude (comma-separated, leave empty to include all)", "")
-		cfg.ExcludeFolders = util.ParseCommaSeparated(excludeInput)
-	}
-
-	if len(cfg.IncludeExt) == 0 {
-		includeInput := promptForInputWithDefault("Enter file extensions to include (comma-separated, leave empty to include all)", "")
-		cfg.IncludeExt = util.ParseCommaSeparated(includeInput)
-	}
-
-	return validateRepoURL(cfg.RepoURL)
-}
-
-// promptForRepoURL prompts the user for a valid repository URL.
-func promptForRepoURL() string {
-	for {
-		input := promptForInput("Enter the GitHub repository URL (HTTPS or SSH):")
-		if err := validateRepoURL(input); err == nil {
-			return input
-		}
-		fmt.Println("Invalid repository URL. Please enter a valid HTTPS or SSH URL for a GitHub repository.")
-	}
-}
-
-// promptForInput prompts the user for input with the given label.
-func promptForInput(label string) string {
-	prompt := promptui.Prompt{
-		Label:    label,
-		Validate: validateNonEmpty,
-		Stdin:    os.Stdin,
-	}
-
-	result, err := prompt.Run()
-	if err != nil {
-		log.Fatalf("Prompt failed: %v", err)
-	}
-	return strings.TrimSpace(result)
-}
-
-// promptForInputWithDefault prompts the user for input with a default value.
-func promptForInputWithDefault(label, defaultValue string) string {
-	prompt := promptui.Prompt{
-		Label:   label,
-		Default: defaultValue,
-		Stdin:   os.Stdin,
-	}
-
-	result, err := prompt.Run()
-	if err != nil {
-		log.Fatalf("Prompt failed: %v", err)
-	}
-	input := strings.TrimSpace(result)
-	if input == "" {
-		return defaultValue
-	}
-	return input
-}
-
-// promptForAuthMethod prompts the user to select an authentication method.
-func promptForAuthMethod() config.AuthMethod {
-	prompt := promptui.Select{
-		Label: "Select authentication method",
-		Items: []string{"No Authentication", "HTTPS with PAT", "SSH"},
-	}
-	_, result, err := prompt.Run()
-	if err != nil {
-		log.Fatalf("Prompt failed: %v", err)
-	}
-
-	switch result {
-	case "HTTPS with PAT":
-		return config.AuthMethodHTTPS
-	case "SSH":
-		return config.AuthMethodSSH
-	default:
-		return config.AuthMethodNone
-	}
-}
-
-// promptForPassword securely prompts the user for a password without echoing.
-func promptForPassword(label string) string {
-	fmt.Printf("%s ", label)
-	bytePassword, err := term.ReadPassword(int(os.Stdin.Fd()))
-	if err != nil {
-		log.Fatalf("Password prompt failed: %v", err)
-	}
-	fmt.Println() // Move to the next line after input
-	return strings.TrimSpace(string(bytePassword))
-}
-
-// validateNonEmpty ensures the input is not empty.
-func validateNonEmpty(input string) error {
-	if strings.TrimSpace(input) == "" {
-		return ErrEmptyInput
-	}
 	return nil
 }
 
-// defaultSSHKeyPath returns the default SSH key path.
-func defaultSSHKeyPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalf("Unable to determine user home directory: %v", err)
+// validateRepoURL validates the repository URL.
+func validateRepoURL(repoURL string) error {
+	if strings.TrimSpace(repoURL) == "" {
+		return errors.New("repository URL cannot be empty")
 	}
-	return filepath.Join(home, ".ssh", "id_rsa")
+
+	if strings.HasPrefix(repoURL, "https://") {
+		if !strings.HasPrefix(repoURL, "https://github.com/") {
+			return errors.New("HTTPS URL must be a GitHub repository URL")
+		}
+		return nil
+	}
+
+	if strings.HasPrefix(repoURL, "git@github.com:") {
+		return nil
+	}
+
+	return errors.New("URL must be either HTTPS (https://github.com/user/repo) or SSH (git@github.com:user/repo) format")
 }
 
 // isSSHKeyPassphraseProtected checks if the SSH key is passphrase protected.
@@ -180,22 +168,20 @@ func isSSHKeyPassphraseProtected(keyPath string) bool {
 	return strings.Contains(content, "ENCRYPTED")
 }
 
-// validateRepoURL validates the repository URL.
-func validateRepoURL(repoURL string) error {
-	if strings.TrimSpace(repoURL) == "" {
-		return errors.New("repository URL cannot be empty")
+// defaultSSHKeyPath returns the default SSH key path.
+func defaultSSHKeyPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
 	}
+	return filepath.Join(home, ".ssh", "id_rsa")
+}
 
-	if strings.HasPrefix(repoURL, "https://") {
-		if !strings.HasPrefix(repoURL, "https://github.com/") {
-			return errors.New("HTTPS URL must be a GitHub repository URL")
-		}
-		return nil
+// defaultDownloadsPath returns the default downloads path.
+func defaultDownloadsPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "."
 	}
-
-	if strings.HasPrefix(repoURL, "git@github.com:") {
-		return nil
-	}
-
-	return errors.New("URL must be either HTTPS (https://github.com/user/repo) or SSH (git@github.com:user/repo) format")
+	return filepath.Join(home, "Downloads")
 }
