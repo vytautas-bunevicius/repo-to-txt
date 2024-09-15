@@ -1,5 +1,6 @@
 // Package config handles the configuration for the repo-to-txt CLI tool.
-// It parses command-line flags and manages authentication and output settings.
+// It defines the structure for storing configuration options and provides
+// methods for parsing command-line flags and environment variables.
 package config
 
 import (
@@ -10,68 +11,63 @@ import (
 	"strings"
 )
 
+// Constants define default values and version information for the tool.
 const (
-	// Version is the current version of the tool.
+	// Version represents the current version of the tool.
 	Version = "1.1.0"
 
-	// DefaultCloneDir is the default directory name for cloning.
+	// DefaultCloneDir is the default directory name for cloning repositories.
 	DefaultCloneDir = "repo-to-txt-clone"
 
-	// DefaultOutputExt is the default extension for the output file.
+	// DefaultOutputExt is the default file extension for the output file.
 	DefaultOutputExt = ".txt"
 
-	// DefaultSSHKeyName is the default SSH key name.
+	// DefaultSSHKeyName is the default name for the SSH key file.
 	DefaultSSHKeyName = "git"
 
-	// DefaultExcludedExt is the default file extension to exclude.
+	// DefaultExcludedExt is the default file extension to exclude from processing.
 	DefaultExcludedExt = ".ipynb"
 )
 
-// AuthMethod represents the type of authentication to use.
+// AuthMethod represents the type of authentication to use when accessing repositories.
 type AuthMethod int
 
+// Constants for different authentication methods.
 const (
-	// AuthMethodNone indicates no authentication.
 	AuthMethodNone AuthMethod = iota
-
-	// AuthMethodHTTPS indicates HTTPS authentication.
 	AuthMethodHTTPS
-
-	// AuthMethodSSH indicates SSH authentication.
 	AuthMethodSSH
 )
 
-// Config holds the configuration for the CLI tool.
+// Config holds all configuration options for the repo-to-txt tool.
 type Config struct {
-	RepoURL             string
-	AuthMethod          AuthMethod
-	Username            string
-	PersonalAccessToken string
-	SSHKeyPath          string
-	SSHPassphrase       string
-	ExcludeFolders      []string
-	IncludeExt          []string
-	OutputDir           string
-	CopyToClipboard     bool // New field for clipboard copying
-	AuthFlagSet         bool
-	VersionFlag         bool
+	RepoURL             string     // URL of the Git repository to clone
+	AuthMethod          AuthMethod // Authentication method to use
+	Username            string     // GitHub username for HTTPS authentication
+	PersonalAccessToken string     // GitHub personal access token for HTTPS authentication
+	SSHKeyPath          string     // Path to SSH key for SSH authentication
+	SSHPassphrase       string     // Passphrase for SSH key, if any
+	ExcludeFolders      []string   // List of folders to exclude from processing
+	IncludeExt          []string   // List of file extensions to include in processing
+	OutputDir           string     // Directory to output the generated text file
+	AuthFlagSet         bool       // Indicates if authentication method was set via flag
+	VersionFlag         bool       // Flag to print version information
+	CopyToClipboard     bool       // Flag to copy output to clipboard
+	CopyToClipboardSet  bool       // Indicates if copy-to-clipboard was set via flag
 }
 
-// NewConfig creates a new Config instance with default values.
+// NewConfig creates and returns a new Config instance with default values.
 func NewConfig() *Config {
 	return &Config{}
 }
 
 // ParseFlags parses command-line flags and populates the Config struct.
 // It handles required flags, default values, and validates authentication methods.
-//
-// Returns:
-//   - error: An error if flag parsing or validation fails.
 func (cfg *Config) ParseFlags() error {
 	var authMethod string
 	var excludeFolders, includeExt string
-	var copyToClipboard bool // New variable for clipboard flag
 
+	// Define command-line flags
 	flag.StringVar(&cfg.RepoURL, "repo", "", "GitHub repository URL (HTTPS or SSH) (Required)")
 	flag.StringVar(&authMethod, "auth", "", "Authentication method: none, https, or ssh (Required)")
 	flag.StringVar(&cfg.Username, "username", "", "GitHub username (for HTTPS)")
@@ -80,26 +76,33 @@ func (cfg *Config) ParseFlags() error {
 	flag.StringVar(&cfg.OutputDir, "output-dir", "", "Output directory for the generated text file")
 	flag.StringVar(&excludeFolders, "exclude", "", "Comma-separated list of folders to exclude from the output")
 	flag.StringVar(&includeExt, "include-ext", "", "Comma-separated list of file extensions to include (e.g., .go,.md). If not set, defaults to excluding certain non-code files like .ipynb")
-	flag.BoolVar(&copyToClipboard, "copy-clipboard", false, "Copy the output to the clipboard after creation") // New flag
 	flag.BoolVar(&cfg.VersionFlag, "version", false, "Print the version number and exit")
+	flag.BoolVar(&cfg.CopyToClipboard, "copy-clipboard", false, "Copy the output to clipboard")
 
+	// Parse the flags
 	flag.Parse()
 
-	if cfg.VersionFlag {
-		fmt.Printf("repo-to-txt version %s\n", Version)
-		os.Exit(0) // Exit after printing version
-	}
-
+	// Check if copy-to-clipboard was set via flag
 	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "copy-clipboard" {
+			cfg.CopyToClipboardSet = true
+		}
 		if f.Name == "auth" {
 			cfg.AuthFlagSet = true
 		}
 	})
 
+	// Handle version flag
+	if cfg.VersionFlag {
+		fmt.Printf("repo-to-txt version %s\n", Version)
+		os.Exit(0)
+	}
+
+	// Process comma-separated inputs
 	cfg.ExcludeFolders = parseCommaSeparated(excludeFolders)
 	cfg.IncludeExt = parseCommaSeparated(includeExt)
-	cfg.CopyToClipboard = copyToClipboard // Assign the flag value
 
+	// Set authentication method
 	switch strings.ToLower(authMethod) {
 	case "https":
 		cfg.AuthMethod = AuthMethodHTTPS
@@ -115,12 +118,7 @@ func (cfg *Config) ParseFlags() error {
 }
 
 // parseCommaSeparated splits a comma-separated string into a slice of trimmed strings.
-//
-// Parameters:
-//   - input: The comma-separated string.
-//
-// Returns:
-//   - []string: A slice of trimmed strings.
+// It returns nil if the input string is empty.
 func parseCommaSeparated(input string) []string {
 	if input == "" {
 		return nil

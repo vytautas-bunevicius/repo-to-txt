@@ -1,17 +1,17 @@
 // Package main serves as the entry point for the repo-to-txt CLI tool.
 // It orchestrates the configuration parsing, user prompting, repository cloning/pulling,
-// the generation of a text file containing the repository's contents, and optionally
-// copies the output to the clipboard.
+// and the generation of a text file containing the repository's contents.
 package main
 
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 
-	"github.com/atotto/clipboard" // Import for clipboard operations
+	"github.com/atotto/clipboard"
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/auth"
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/clone"
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/config"
@@ -41,7 +41,7 @@ func main() {
 //  8. Clones the repository or pulls the latest changes if it already exists locally.
 //  9. Writes the repository contents to the specified output file.
 //
-// 10. Optionally copies the output to the clipboard based on the configuration.
+// 10. Optionally copies the contents to clipboard if requested.
 //
 // Parameters:
 //   - ctx: The context for managing cancellation and deadlines.
@@ -59,7 +59,7 @@ func run(ctx context.Context) error {
 
 	// Prompt the user for any missing configuration inputs.
 	if err := prompt.PromptForMissingInputs(cfg); err != nil {
-		return err
+		return fmt.Errorf("error prompting for inputs: %w", err)
 	}
 
 	log.Println("Welcome to repo-to-txt!")
@@ -98,20 +98,18 @@ func run(ctx context.Context) error {
 
 	log.Printf("Repository contents written to %s", outputFile)
 
-	// Copy to clipboard if requested.
+	// Handle clipboard copy if requested
 	if cfg.CopyToClipboard {
-		content, err := os.ReadFile(outputFile)
+		content, err := ioutil.ReadFile(outputFile)
 		if err != nil {
-			return fmt.Errorf("failed to read output file for clipboard copy: %w", err)
+			return fmt.Errorf("error reading output file for clipboard: %w", err)
 		}
-
-		// Attempt to copy to clipboard.
-		err = clipboard.WriteAll(string(content))
-		if err != nil {
-			return fmt.Errorf("failed to copy content to clipboard: %w", err)
+		if err := clipboard.WriteAll(string(content)); err != nil {
+			return fmt.Errorf("error copying to clipboard: %w", err)
 		}
-
 		log.Println("Repository contents have been copied to the clipboard.")
+	} else {
+		log.Println("Repository contents were not copied to the clipboard.")
 	}
 
 	return nil

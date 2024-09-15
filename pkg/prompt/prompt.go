@@ -1,5 +1,6 @@
 // Package prompt manages interactive user prompts for missing configuration inputs.
-// It utilizes the huh library to create forms for collecting user input.
+// It utilizes the huh library to create forms for collecting user input when
+// necessary configuration details are not provided via command-line flags.
 package prompt
 
 import (
@@ -15,7 +16,7 @@ import (
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/util"
 )
 
-// ErrEmptyInput is returned when the user provides an empty input.
+// ErrEmptyInput is returned when the user provides an empty input for a required field.
 var ErrEmptyInput = errors.New("input cannot be empty")
 
 // PromptForMissingInputs prompts the user interactively for any missing configuration inputs.
@@ -27,7 +28,7 @@ var ErrEmptyInput = errors.New("input cannot be empty")
 // Returns:
 //   - error: An error if prompting fails or input validation fails.
 func PromptForMissingInputs(cfg *config.Config) error {
-	// Step 1: Prompt for the GitHub repository URL if not set via flag.
+	// Prompt for repository URL if not provided
 	if cfg.RepoURL == "" {
 		repoForm := huh.NewForm(
 			huh.NewGroup(
@@ -43,82 +44,86 @@ func PromptForMissingInputs(cfg *config.Config) error {
 		}
 	}
 
-	// Determine the authentication options based on the repository URL type.
-	var authOptions []huh.Option[config.AuthMethod]
-	if isHTTPSURL(cfg.RepoURL) {
-		authOptions = []huh.Option[config.AuthMethod]{
-			huh.NewOption("No Authentication", config.AuthMethodNone),
-			huh.NewOption("HTTPS with PAT", config.AuthMethodHTTPS),
+	// Prompt for authentication method if not set via flag
+	if !cfg.AuthFlagSet {
+		var authOptions []huh.Option[config.AuthMethod]
+		if isHTTPSURL(cfg.RepoURL) {
+			authOptions = []huh.Option[config.AuthMethod]{
+				huh.NewOption("No Authentication", config.AuthMethodNone),
+				huh.NewOption("HTTPS with PAT", config.AuthMethodHTTPS),
+			}
+		} else if isSSHURL(cfg.RepoURL) {
+			authOptions = []huh.Option[config.AuthMethod]{
+				huh.NewOption("SSH Authentication", config.AuthMethodSSH),
+			}
+		} else {
+			return errors.New("unsupported repository URL format for authentication options")
 		}
-	} else if isSSHURL(cfg.RepoURL) {
-		authOptions = []huh.Option[config.AuthMethod]{
-			huh.NewOption("SSH Authentication", config.AuthMethodSSH),
+
+		authForm := huh.NewForm(
+			huh.NewGroup(
+				huh.NewSelect[config.AuthMethod]().
+					Title("Select authentication method").
+					Options(authOptions...).
+					Value(&cfg.AuthMethod),
+			),
+		)
+		err := authForm.Run()
+		if err != nil {
+			return fmt.Errorf("authentication method input error: %w", err)
 		}
-	} else {
-		return errors.New("unsupported repository URL format for authentication options")
 	}
 
-	// Step 2: Prompt for the authentication method based on the repository URL type.
-	authForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[config.AuthMethod]().
-				Title("Select authentication method").
-				Options(authOptions...).
-				Value(&cfg.AuthMethod),
-		),
-	)
-	err := authForm.Run()
-	if err != nil {
-		return fmt.Errorf("authentication method input error: %w", err)
-	}
-
-	// Based on the selected authentication method, prompt for additional inputs.
+	// Prompt for additional authentication details based on the selected method
 	switch cfg.AuthMethod {
 	case config.AuthMethodHTTPS:
-		httpsForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title("GitHub username").
-					Value(&cfg.Username).
-					Validate(nonEmptyValidator("GitHub username")),
-				huh.NewInput().
-					Title("GitHub Personal Access Token").
-					Value(&cfg.PersonalAccessToken).
-					Password(true).
-					Validate(nonEmptyValidator("Personal Access Token")),
-			),
-		)
-		err = httpsForm.Run()
-		if err != nil {
-			return fmt.Errorf("HTTPS authentication input error: %w", err)
+		if cfg.Username == "" || cfg.PersonalAccessToken == "" {
+			httpsForm := huh.NewForm(
+				huh.NewGroup(
+					huh.NewInput().
+						Title("GitHub username").
+						Value(&cfg.Username).
+						Validate(nonEmptyValidator("GitHub username")),
+					huh.NewInput().
+						Title("GitHub Personal Access Token").
+						Value(&cfg.PersonalAccessToken).
+						Password(true).
+						Validate(nonEmptyValidator("Personal Access Token")),
+				),
+			)
+			err := httpsForm.Run()
+			if err != nil {
+				return fmt.Errorf("HTTPS authentication input error: %w", err)
+			}
 		}
 	case config.AuthMethodSSH:
-		defaultSSHKey := defaultSSHKeyPath()
-		sshForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title("Path to SSH private key").
-					Value(&cfg.SSHKeyPath).
-					Placeholder(defaultSSHKey).
-					Validate(func(s string) error {
-						if s == "" {
-							cfg.SSHKeyPath = defaultSSHKey
+		if cfg.SSHKeyPath == "" {
+			defaultSSHKey := defaultSSHKeyPath()
+			sshForm := huh.NewForm(
+				huh.NewGroup(
+					huh.NewInput().
+						Title("Path to SSH private key").
+						Value(&cfg.SSHKeyPath).
+						Placeholder(defaultSSHKey).
+						Validate(func(s string) error {
+							if s == "" {
+								cfg.SSHKeyPath = defaultSSHKey
+								return nil
+							}
+							if _, err := os.Stat(s); os.IsNotExist(err) {
+								return fmt.Errorf("SSH key file does not exist at path: %s", s)
+							}
 							return nil
-						}
-						if _, err := os.Stat(s); os.IsNotExist(err) {
-							return fmt.Errorf("SSH key file does not exist at path: %s", s)
-						}
-						return nil
-					}),
-			),
-		)
-		err = sshForm.Run()
-		if err != nil {
-			return fmt.Errorf("SSH key path input error: %w", err)
+						}),
+				),
+			)
+			err := sshForm.Run()
+			if err != nil {
+				return fmt.Errorf("SSH key path input error: %w", err)
+			}
 		}
 
-		// Check if the SSH key is passphrase protected.
-		if isSSHKeyPassphraseProtected(cfg.SSHKeyPath) {
+		if isSSHKeyPassphraseProtected(cfg.SSHKeyPath) && cfg.SSHPassphrase == "" {
 			passphraseForm := huh.NewForm(
 				huh.NewGroup(
 					huh.NewInput().
@@ -127,71 +132,65 @@ func PromptForMissingInputs(cfg *config.Config) error {
 						Password(true),
 				),
 			)
-			err = passphraseForm.Run()
+			err := passphraseForm.Run()
 			if err != nil {
 				return fmt.Errorf("SSH passphrase input error: %w", err)
 			}
 		}
 	}
 
-	// Step 3: Prompt for output configurations.
-	var excludeFolders, includeExt string
+	// Prompt for output configuration if not provided
 	if cfg.OutputDir == "" {
-		cfg.OutputDir = defaultDownloadsPath() // Set default if not provided
-	}
-
-	outputForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Output directory").
-				Value(&cfg.OutputDir).
-				Placeholder(defaultDownloadsPath()).
-				Validate(func(s string) error {
-					if s == "" {
-						cfg.OutputDir = defaultDownloadsPath()
+		var excludeFolders, includeExt string
+		defaultOutputDir := defaultDownloadsPath()
+		outputForm := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().
+					Title("Output directory").
+					Value(&cfg.OutputDir).
+					Placeholder(defaultOutputDir).
+					Validate(func(s string) error {
+						if s == "" {
+							cfg.OutputDir = defaultOutputDir
+							return nil
+						}
 						return nil
-					}
-					return nil
-				}),
-			huh.NewInput().
-				Title("Folders to exclude (comma-separated, leave empty to include all)").
-				Value(&excludeFolders),
-			huh.NewInput().
-				Title("File extensions to include (comma-separated, leave empty to include all)").
-				Value(&includeExt),
-		),
-	)
-	err = outputForm.Run()
-	if err != nil {
-		return fmt.Errorf("output configuration input error: %w", err)
+					}),
+				huh.NewInput().
+					Title("Folders to exclude (comma-separated, leave empty to include all)").
+					Value(&excludeFolders),
+				huh.NewInput().
+					Title("File extensions to include (comma-separated, leave empty to include all)").
+					Value(&includeExt),
+			),
+		)
+		err := outputForm.Run()
+		if err != nil {
+			return fmt.Errorf("output configuration input error: %w", err)
+		}
+
+		cfg.ExcludeFolders = util.ParseCommaSeparated(excludeFolders)
+		cfg.IncludeExt = util.ParseCommaSeparated(includeExt)
 	}
 
-	// Process the comma-separated inputs.
-	cfg.ExcludeFolders = util.ParseCommaSeparated(excludeFolders)
-	cfg.IncludeExt = util.ParseCommaSeparated(includeExt)
-
-	// Ensure the output directory exists.
-	if err := os.MkdirAll(cfg.OutputDir, os.ModePerm); err != nil {
-		return fmt.Errorf("failed to create output directory: %w", err)
-	}
-
-	// Step 4: Prompt for clipboard copying if not set via flag.
-	if !cfg.CopyToClipboard {
+	// Prompt for copy to clipboard if not set
+	if !cfg.CopyToClipboardSet {
 		clipboardForm := huh.NewForm(
 			huh.NewGroup(
-				huh.NewSelect[bool]().
-					Title("Do you want to copy the output to the clipboard?").
-					Options(
-						huh.NewOption("Yes", true),
-						huh.NewOption("No", false),
-					).
+				huh.NewConfirm().
+					Title("Copy output to clipboard?").
 					Value(&cfg.CopyToClipboard),
 			),
 		)
 		err := clipboardForm.Run()
 		if err != nil {
-			return fmt.Errorf("clipboard copy input error: %w", err)
+			return fmt.Errorf("clipboard option input error: %w", err)
 		}
+	}
+
+	// Ensure the output directory exists
+	if err := os.MkdirAll(cfg.OutputDir, os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
 	return nil
@@ -204,7 +203,7 @@ func PromptForMissingInputs(cfg *config.Config) error {
 //   - repoURL: The repository URL to validate.
 //
 // Returns:
-//   - error: An error if the URL is invalid.
+//   - error: An error if the URL is invalid, nil otherwise.
 func validateRepoURL(repoURL string) error {
 	if strings.TrimSpace(repoURL) == "" {
 		return errors.New("repository URL cannot be empty")
@@ -245,7 +244,7 @@ func isSSHURL(url string) bool {
 //   - fieldName: The name of the field being validated.
 //
 // Returns:
-//   - func(string) error: A validator function.
+//   - func(string) error: A validator function that returns an error if the input is empty.
 func nonEmptyValidator(fieldName string) func(string) error {
 	return func(s string) error {
 		if strings.TrimSpace(s) == "" {
