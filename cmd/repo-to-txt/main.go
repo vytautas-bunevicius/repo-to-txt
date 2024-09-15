@@ -1,6 +1,7 @@
 // Package main serves as the entry point for the repo-to-txt CLI tool.
 // It orchestrates the configuration parsing, user prompting, repository cloning/pulling,
-// and the generation of a text file containing the repository's contents.
+// the generation of a text file containing the repository's contents, and optionally
+// copies the output to the clipboard.
 package main
 
 import (
@@ -10,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/atotto/clipboard" // Import for clipboard operations
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/auth"
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/clone"
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/config"
@@ -38,6 +40,8 @@ func main() {
 //  7. Sets up the authentication method.
 //  8. Clones the repository or pulls the latest changes if it already exists locally.
 //  9. Writes the repository contents to the specified output file.
+//
+// 10. Optionally copies the output to the clipboard based on the configuration.
 //
 // Parameters:
 //   - ctx: The context for managing cancellation and deadlines.
@@ -93,5 +97,22 @@ func run(ctx context.Context) error {
 	}
 
 	log.Printf("Repository contents written to %s", outputFile)
+
+	// Copy to clipboard if requested.
+	if cfg.CopyToClipboard {
+		content, err := os.ReadFile(outputFile)
+		if err != nil {
+			return fmt.Errorf("failed to read output file for clipboard copy: %w", err)
+		}
+
+		// Attempt to copy to clipboard.
+		err = clipboard.WriteAll(string(content))
+		if err != nil {
+			return fmt.Errorf("failed to copy content to clipboard: %w", err)
+		}
+
+		log.Println("Repository contents have been copied to the clipboard.")
+	}
+
 	return nil
 }

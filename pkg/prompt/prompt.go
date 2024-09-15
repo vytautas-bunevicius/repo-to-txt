@@ -27,18 +27,20 @@ var ErrEmptyInput = errors.New("input cannot be empty")
 // Returns:
 //   - error: An error if prompting fails or input validation fails.
 func PromptForMissingInputs(cfg *config.Config) error {
-	// Step 1: Prompt for the GitHub repository URL.
-	repoForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("GitHub repository URL (HTTPS or SSH)").
-				Value(&cfg.RepoURL).
-				Validate(validateRepoURL),
-		),
-	)
-	err := repoForm.Run()
-	if err != nil {
-		return fmt.Errorf("repository URL input error: %w", err)
+	// Step 1: Prompt for the GitHub repository URL if not set via flag.
+	if cfg.RepoURL == "" {
+		repoForm := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().
+					Title("GitHub repository URL (HTTPS or SSH)").
+					Value(&cfg.RepoURL).
+					Validate(validateRepoURL),
+			),
+		)
+		err := repoForm.Run()
+		if err != nil {
+			return fmt.Errorf("repository URL input error: %w", err)
+		}
 	}
 
 	// Determine the authentication options based on the repository URL type.
@@ -65,7 +67,7 @@ func PromptForMissingInputs(cfg *config.Config) error {
 				Value(&cfg.AuthMethod),
 		),
 	)
-	err = authForm.Run()
+	err := authForm.Run()
 	if err != nil {
 		return fmt.Errorf("authentication method input error: %w", err)
 	}
@@ -134,16 +136,19 @@ func PromptForMissingInputs(cfg *config.Config) error {
 
 	// Step 3: Prompt for output configurations.
 	var excludeFolders, includeExt string
-	defaultOutputDir := defaultDownloadsPath()
+	if cfg.OutputDir == "" {
+		cfg.OutputDir = defaultDownloadsPath() // Set default if not provided
+	}
+
 	outputForm := huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Output directory").
 				Value(&cfg.OutputDir).
-				Placeholder(defaultOutputDir).
+				Placeholder(defaultDownloadsPath()).
 				Validate(func(s string) error {
 					if s == "" {
-						cfg.OutputDir = defaultOutputDir
+						cfg.OutputDir = defaultDownloadsPath()
 						return nil
 					}
 					return nil
@@ -168,6 +173,25 @@ func PromptForMissingInputs(cfg *config.Config) error {
 	// Ensure the output directory exists.
 	if err := os.MkdirAll(cfg.OutputDir, os.ModePerm); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	// Step 4: Prompt for clipboard copying if not set via flag.
+	if !cfg.CopyToClipboard {
+		clipboardForm := huh.NewForm(
+			huh.NewGroup(
+				huh.NewSelect[bool]().
+					Title("Do you want to copy the output to the clipboard?").
+					Options(
+						huh.NewOption("Yes", true),
+						huh.NewOption("No", false),
+					).
+					Value(&cfg.CopyToClipboard),
+			),
+		)
+		err := clipboardForm.Run()
+		if err != nil {
+			return fmt.Errorf("clipboard copy input error: %w", err)
+		}
 	}
 
 	return nil

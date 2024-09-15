@@ -52,6 +52,7 @@ type Config struct {
 	ExcludeFolders      []string
 	IncludeExt          []string
 	OutputDir           string
+	CopyToClipboard     bool // New field for clipboard copying
 	AuthFlagSet         bool
 	VersionFlag         bool
 }
@@ -69,6 +70,7 @@ func NewConfig() *Config {
 func (cfg *Config) ParseFlags() error {
 	var authMethod string
 	var excludeFolders, includeExt string
+	var copyToClipboard bool // New variable for clipboard flag
 
 	flag.StringVar(&cfg.RepoURL, "repo", "", "GitHub repository URL (HTTPS or SSH) (Required)")
 	flag.StringVar(&authMethod, "auth", "", "Authentication method: none, https, or ssh (Required)")
@@ -78,6 +80,7 @@ func (cfg *Config) ParseFlags() error {
 	flag.StringVar(&cfg.OutputDir, "output-dir", "", "Output directory for the generated text file")
 	flag.StringVar(&excludeFolders, "exclude", "", "Comma-separated list of folders to exclude from the output")
 	flag.StringVar(&includeExt, "include-ext", "", "Comma-separated list of file extensions to include (e.g., .go,.md). If not set, defaults to excluding certain non-code files like .ipynb")
+	flag.BoolVar(&copyToClipboard, "copy-clipboard", false, "Copy the output to the clipboard after creation") // New flag
 	flag.BoolVar(&cfg.VersionFlag, "version", false, "Print the version number and exit")
 
 	flag.Parse()
@@ -95,6 +98,7 @@ func (cfg *Config) ParseFlags() error {
 
 	cfg.ExcludeFolders = parseCommaSeparated(excludeFolders)
 	cfg.IncludeExt = parseCommaSeparated(includeExt)
+	cfg.CopyToClipboard = copyToClipboard // Assign the flag value
 
 	switch strings.ToLower(authMethod) {
 	case "https":

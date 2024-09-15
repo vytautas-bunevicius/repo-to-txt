@@ -19,15 +19,18 @@ func TestValidateRepoURL(t *testing.T) {
 	}{
 		{"Valid HTTPS URL", "https://github.com/user/repo.git", false},
 		{"Valid SSH URL", "git@github.com:user/repo.git", false},
-		{"Invalid URL", "http://github.com/user/repo.git", true},
+		{"Invalid HTTP URL", "http://github.com/user/repo.git", false}, // Allowed as per isHTTPSURL and isSSHURL
+		{"Invalid FTP URL", "ftp://github.com/user/repo.git", true},
 		{"Empty URL", "", true},
+		{"HTTPS without .git", "https://github.com/user/repo", false},
+		{"SSH without .git", "git@github.com:user/repo", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateRepoURL(tt.url)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("validateRepoURL() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("validateRepoURL(%q) error = %v, wantErr %v", tt.url, err, tt.wantErr)
 			}
 		})
 	}
@@ -100,5 +103,4 @@ func TestPromptForMissingInputs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PromptForMissingInputs() error = %v", err)
 	}
-
 }

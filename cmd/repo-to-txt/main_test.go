@@ -1,10 +1,11 @@
 // Package main_test contains integration tests for the repo-to-txt CLI tool.
 // These tests verify the end-to-end functionality of the tool, including building the binary,
-// cloning a repository, and generating the output text file.
+// cloning a repository, generating the output text file, and optionally copying to the clipboard.
 //
 // Note: Integration tests are skipped by default and can be enabled by setting the
-// RUN_INTEGRATION_TESTS environment variable to "true". They are also skipped when
-// running in short mode (e.g., `go test -short`).
+// RUN_INTEGRATION_TESTS environment variable to "true". Clipboard tests require
+// the RUN_CLIPBOARD_TESTS environment variable to be set to "true" and may fail
+// in headless or restricted environments.
 package main
 
 import (
@@ -13,23 +14,28 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/atotto/clipboard"
 )
 
 // TestMainIntegration performs an end-to-end integration test of the repo-to-txt CLI tool.
-// It builds the binary, clones a specified repository without authentication, and verifies
-// that the output text file is generated correctly.
+// It builds the binary, clones a specified repository without authentication, generates the output
+// text file, and optionally verifies clipboard copying.
 //
 // Preconditions:
 //   - The RUN_INTEGRATION_TESTS environment variable must be set to "true" to run this test.
 //   - Network access is required to clone the specified GitHub repository.
+//   - Clipboard access is required to verify clipboard copying if RUN_CLIPBOARD_TESTS is set to "true".
 //
 // Steps:
 //  1. Skip the test if running in short mode or if RUN_INTEGRATION_TESTS is not set to "true".
 //  2. Build the repo-to-txt binary.
 //  3. Create a temporary output directory.
-//  4. Execute the binary with specified command-line arguments.
+//  4. Execute the binary with specified command-line arguments, including the clipboard flag.
 //  5. Verify that the output file is created and contains content.
+//  6. Optionally, verify that the clipboard contains the expected content.
 //
 // Parameters:
 //   - t: The testing framework's testing object.
@@ -66,6 +72,7 @@ func TestMainIntegration(t *testing.T) {
 		"-repo=" + repoURL,
 		"-auth=none",
 		"-output-dir=" + outputDir,
+		"-copy-clipboard=true", // Enable clipboard copying
 	}
 
 	// Step 4: Run the binary.
@@ -99,5 +106,18 @@ func TestMainIntegration(t *testing.T) {
 
 	if len(content) == 0 {
 		t.Errorf("Output file %s is empty", outputFile)
+	}
+
+	// New Step: Verify clipboard content (optional and environment-dependent)
+	if os.Getenv("RUN_CLIPBOARD_TESTS") == "true" {
+		clipboardContent, err := clipboard.ReadAll()
+		if err != nil {
+			t.Fatalf("Failed to read from clipboard: %v", err)
+		}
+
+		// Simple comparison; in real tests, consider more robust checks
+		if !strings.Contains(string(clipboardContent), "=== repo-to-txt.txt ===") {
+			t.Errorf("Clipboard content does not contain expected output")
+		}
 	}
 }
