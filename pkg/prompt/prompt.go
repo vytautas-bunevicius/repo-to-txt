@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -28,6 +29,9 @@ var ErrEmptyInput = errors.New("input cannot be empty")
 //
 // Returns:
 //   - error: An error if prompting fails or input validation fails.
+//
+// PromptForMissingInputs prompts the user interactively for any missing configuration inputs.
+// It updates the provided Config struct with the collected inputs.
 func PromptForMissingInputs(cfg *config.Config) error {
 	// Prompt for repository URL if not provided
 	if cfg.RepoURL == "" {
@@ -99,7 +103,7 @@ func PromptForMissingInputs(cfg *config.Config) error {
 		}
 	case config.AuthMethodSSH:
 		if cfg.SSHKeyPath == "" {
-			defaultSSHKey := DefaultSSHKeyPath() // Corrected to use separate function
+			defaultSSHKey := DefaultSSHKeyPath()
 			sshForm := huh.NewForm(
 				huh.NewGroup(
 					huh.NewInput().
@@ -107,12 +111,13 @@ func PromptForMissingInputs(cfg *config.Config) error {
 						Value(&cfg.SSHKeyPath).
 						Placeholder(defaultSSHKey).
 						Validate(func(s string) error {
-							if s == "" {
+							trimmed := strings.TrimSpace(s)
+							if trimmed == "" {
 								cfg.SSHKeyPath = defaultSSHKey
 								return nil
 							}
-							if _, err := os.Stat(s); os.IsNotExist(err) {
-								return fmt.Errorf("SSH key file does not exist at path: %s", s)
+							if _, err := os.Stat(trimmed); os.IsNotExist(err) {
+								return fmt.Errorf("SSH key file does not exist at path: %s", trimmed)
 							}
 							return nil
 						}),
@@ -143,19 +148,20 @@ func PromptForMissingInputs(cfg *config.Config) error {
 	// Prompt for output configuration if not provided
 	if cfg.OutputDir == "" {
 		var excludeFolders, includeExt string
-		defaultOutputDir := defaultDownloadsPath() // Corrected to use separate function
+		defaultOutputDir := defaultDownloadsPath()
 		outputForm := huh.NewForm(
 			huh.NewGroup(
 				huh.NewInput().
 					Title("Output directory").
-					Value(&cfg.OutputDir).
 					Placeholder(defaultOutputDir).
 					Validate(func(s string) error {
-						if s == "" {
+						trimmed := strings.TrimSpace(s)
+						if trimmed == "" {
 							cfg.OutputDir = defaultOutputDir
-							return nil
+						} else {
+							cfg.OutputDir = trimmed
 						}
-						return nil // Allow user to specify a custom path without validation
+						return nil
 					}),
 				huh.NewInput().
 					Title("Folders to exclude (comma-separated, leave empty to include all)").
@@ -172,6 +178,9 @@ func PromptForMissingInputs(cfg *config.Config) error {
 
 		cfg.ExcludeFolders = util.ParseCommaSeparated(excludeFolders)
 		cfg.IncludeExt = util.ParseCommaSeparated(includeExt)
+
+		// Logging for debugging
+		log.Printf("OutputDir set to: %s", cfg.OutputDir)
 	}
 
 	// Prompt for exact file names to copy if not provided
@@ -182,7 +191,6 @@ func PromptForMissingInputs(cfg *config.Config) error {
 				huh.NewInput().
 					Title("Exact file names to copy (comma-separated, leave empty to copy all files)").
 					Value(&filesInput).
-					// Replace Validate(nil) with a no-op validator
 					Validate(func(s string) error { return nil }),
 			),
 		)
@@ -207,6 +215,9 @@ func PromptForMissingInputs(cfg *config.Config) error {
 			return fmt.Errorf("clipboard option input error: %w", err)
 		}
 	}
+
+	// Logging for debugging
+	log.Printf("Final OutputDir: %s", cfg.OutputDir)
 
 	// Ensure the output directory exists
 	if err := os.MkdirAll(cfg.OutputDir, os.ModePerm); err != nil {

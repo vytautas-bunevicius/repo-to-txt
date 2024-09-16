@@ -81,16 +81,20 @@ To run `repo-to-txt` from any directory, you need to add the directory containin
 
 1. **Move the executable to a directory in your PATH:**
    Common locations include `/usr/local/bin` or `/usr/bin`.
+
    ```sh
    sudo mv repo-to-txt /usr/local/bin/
    ```
 
 2. **Alternatively, add the executable's current directory to your PATH:**
    Open your shell's configuration file (e.g., `~/.bashrc` or `~/.zshrc`) and add the following line, replacing `/path/to` with the actual path to the executable:
+
    ```bash
    export PATH="$PATH:/path/to"
    ```
+
    Then, reload the shell configuration:
+
    ```bash
    source ~/.bashrc # or source ~/.zshrc
    ```
@@ -233,6 +237,7 @@ repo-to-txt -repo=https://github.com/vytautas-bunevicius/repo-to-txt.git -auth=n
 ```
 
 **Note**:
+
 - If multiple files with the same name exist in different directories, the tool will prompt you to select which one to include.
 - The output `.txt` file will include the path of each specified file as a separator before its contents.
 
