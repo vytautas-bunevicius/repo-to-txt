@@ -1,4 +1,3 @@
-=== pkg/prompt/prompt.go ===
 // === pkg/prompt/prompt.go ===
 // Package prompt manages interactive user prompts for missing configuration inputs.
 // It utilizes the huh library to create forms for collecting user input when
@@ -371,5 +370,3 @@ func isSSHKeyPassphraseProtected(keyPath string) bool {
 	content := string(buf[:n])
 	return strings.Contains(content, "ENCRYPTED")
 }
-
-

@@ -12,12 +12,6 @@
 /bin/
 /dist/
 
-# Go module cache
-/pkg/mod/
-
-# Go build cache (use with caution, can slow down builds)
-/pkg/
-
 # Compiled binaries
 *.exe
 *.o
@@ -37,5 +31,5 @@
 
 # Build file in the project root
 /repo-to-txt 
-
 /vendor/
+*.txt
