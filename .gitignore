@@ -1,0 +1,41 @@
+# Text files (consider if you really want to exclude ALL .txt files)
+# *.txt 
+
+# IDE/Editor specific files
+.vscode/
+.idx/
+
+# macOS specific files
+.DS_Store
+
+# Go build output
+/bin/
+/dist/
+
+# Go module cache
+/pkg/mod/
+
+# Go build cache (use with caution, can slow down builds)
+/pkg/
+
+# Compiled binaries
+*.exe
+*.o
+*.a
+*.so
+
+# Test binaries
+*_test
+
+# Package archives
+*.tar.gz
+*.zip
+
+# Temporary files
+*.test
+*.out
+
+# Build file in the project root
+/repo-to-txt 
+
+/vendor/
