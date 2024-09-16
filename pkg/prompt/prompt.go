@@ -1,4 +1,3 @@
-// === pkg/prompt/prompt.go ===
 // Package prompt manages interactive user prompts for missing configuration inputs.
 // It utilizes the huh library to create forms for collecting user input when
 // necessary configuration details are not provided via command-line flags.

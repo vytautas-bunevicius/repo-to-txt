@@ -1,4 +1,3 @@
-// === pkg/output/output.go ===
 // Package output manages the generation of the output text file containing repository contents.
 // It handles writing file contents to the output file with appropriate formatting and exclusions,
 // as well as copying specified files to the output directory.

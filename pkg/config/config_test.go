@@ -139,5 +139,3 @@ func TestParseFlagsInvalidAuth(t *testing.T) {
 	}
 }
 
-// Removed TestParseFlagsVersionFlag because mocking os.Exit is not possible in Go.
-// To test the version flag behavior, consider using integration tests that execute the binary as a subprocess.

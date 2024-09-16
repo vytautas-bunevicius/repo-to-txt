@@ -1,4 +1,3 @@
-// === cmd/repo-to-txt/main.go ===
 // Package main serves as the entry point for the repo-to-txt CLI tool.
 // It orchestrates the configuration parsing, user prompting, repository cloning/pulling,
 // and the generation of a text file containing the repository's contents.
