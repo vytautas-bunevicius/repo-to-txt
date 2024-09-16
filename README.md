@@ -17,6 +17,8 @@
   - [Command-Line Exclusions](#command-line-exclusions)
 - [Including Specific File Extensions](#including-specific-file-extensions)
   - [Command-Line Inclusion](#command-line-inclusion)
+- [Including Specific Files](#including-specific-files)
+  - [Command-Line File Inclusion](#command-line-file-inclusion)
 - [Clipboard Copying](#clipboard-copying)
   - [Installing Clipboard Utilities](#installing-clipboard-utilities)
   - [Using Clipboard Copying](#using-clipboard-copying)
@@ -37,6 +39,7 @@
 - **Support for Public and Private Repositories**: Clone public repositories without authentication or private repositories using HTTPS or SSH.
 - **Excluding Specific Folders**: Specify folders to exclude from the output using command-line flags or interactive prompts.
 - **Including Specific File Extensions**: Optionally include only specified file extensions to focus on relevant files.
+- **Including Specific Files**: Select exact file names to include in the consolidated `.txt` output, with their paths clearly indicated.
 - **Flexible Input Methods**: Supports both interactive prompts and command-line flags for providing inputs.
 - **Cross-Platform Compatibility**: Works seamlessly on Windows, macOS, and Linux.
 - **Security Enhancements**:
@@ -130,6 +133,7 @@ Enter the GitHub repository URL (HTTPS or SSH): https://github.com/vytautas-bune
 Enter the output directory (default "/home/user/Downloads"): /path/to/output
 Enter folders to exclude (comma-separated, leave empty to include all): vendor, tests
 Enter file extensions to include (comma-separated, leave empty to include all): .go,.md
+Enter exact file names to copy (comma-separated, leave empty to copy all files): prompt.go, main.go
 Do you want to copy the output to the clipboard?
 ❯ Yes
   No
@@ -137,12 +141,10 @@ Do you want to copy the output to the clipboard?
 Cloning repository: https://github.com/vytautas-bunevicius/repo-to-txt.git
 Enumerating objects: 132, done.
 Total 132 (delta 0), reused 0 (delta 0), pack-reused 132 (from 1)
-2024/09/15 10:35:17 Skipping file .git/index: binary file
-2024/09/15 10:35:17 Skipping file .git/objects/pack/pack-df8004320515f54f375aa24042fb596aa7f3a2b3.idx: binary file
-2024/09/15 10:35:17 Skipping file .git/objects/pack/pack-df8004320515f54f375aa24042fb596aa7f3a2b3.pack: binary file
-2024/09/15 10:35:17 Skipping file repo-to-txt: binary file
-2024/09/15 10:35:17 Repository contents written to /path/to/output/repo-to-txt.txt
-2024/09/15 10:35:17 Repository contents have been copied to the clipboard.
+2024/09/15 10:35:17 Added prompt.go to /path/to/output/repo-to-txt.txt
+2024/09/15 10:35:17 Added main.go to /path/to/output/repo-to-txt.txt
+2024/09/15 10:35:17 Specified files' contents written to /path/to/output/repo-to-txt.txt
+2024/09/15 10:35:17 Specified files' contents have been copied to the clipboard.
 ```
 
 ### Command-Line Flags
@@ -164,6 +166,7 @@ repo-to-txt -repo=<repository_url> -auth=<authentication_method> [additional_fla
 - `-output-dir`: The directory where the output file should be saved. Defaults to the user's Downloads directory.
 - `-exclude`: Comma-separated list of folders to exclude from the output.
 - `-include-ext`: Comma-separated list of file extensions to include (e.g., `.go,.md`). If not set, defaults to excluding certain non-code files like `.ipynb`.
+- `-files`: Comma-separated list of exact file names to copy from the repository.
 - `-copy-clipboard`: Copy the output to the clipboard after creation. Options: `true`, `false`.
 - `-version`: Print the version number and exit.
 
@@ -172,7 +175,7 @@ repo-to-txt -repo=<repository_url> -auth=<authentication_method> [additional_fla
 **Example Command:**
 
 ```sh
-repo-to-txt -repo=https://github.com/vytautas-bunevicius/repo-to-txt.git -auth=none -output-dir=/path/to/output -exclude="vendor,tests" -include-ext=".go,.md" -copy-clipboard=true
+repo-to-txt -repo=https://github.com/vytautas-bunevicius/repo-to-txt.git -auth=none -output-dir=/path/to/output -exclude="vendor,tests" -include-ext=".go,.md" -files="prompt.go,main.go" -copy-clipboard=true
 ```
 
 ## Excluding Specific Folders
@@ -191,7 +194,7 @@ Enter folders to exclude (comma-separated, leave empty to include all): vendor, 
 
 ### Command-Line Exclusions
 
-Use the `-exclude` flag followed by a comma-separated list of folder names to exclude.
+Use the `-exclude` flag followed by a comma-separated list of folder names to exclude from the output.
 
 **Usage Example:**
 
@@ -214,6 +217,34 @@ repo-to-txt -repo=https://github.com/vytautas-bunevicius/repo-to-txt.git -auth=n
 ```
 
 **Note**: If `-include-ext` is not set, the tool defaults to excluding non-code files such as `.ipynb`.
+
+## Including Specific Files
+
+In addition to excluding folders and including specific file extensions, you can select exact file names to include in the consolidated `.txt` output. This allows you to focus on particular files within the repository.
+
+### Command-Line File Inclusion
+
+Use the `-files` flag followed by a comma-separated list of exact file names you wish to include in the output.
+
+**Usage Example:**
+
+```sh
+repo-to-txt -repo=https://github.com/vytautas-bunevicius/repo-to-txt.git -auth=none -output-dir=/path/to/output -files="prompt.go,main.go"
+```
+
+**Note**:
+- If multiple files with the same name exist in different directories, the tool will prompt you to select which one to include.
+- The output `.txt` file will include the path of each specified file as a separator before its contents.
+
+**Sample Output (`repo-to-txt.txt`):**
+
+```
+=== prompt.go ===
+<Contents of prompt.go>
+
+=== main.go ===
+<Contents of main.go>
+```
 
 ## Clipboard Copying
 
@@ -372,7 +403,7 @@ If no supported clipboard utility is found, the tool will log an error message b
 
 **Resolution:**
 
-- Install one of the supported clipboard utilities as detailed above.
+- Install one of the supported clipboard utilities as detailed in the [Clipboard Copying](#clipboard-copying) section.
 - Re-run the tool to enable clipboard copying.
 
 **Benefits of Clipboard Copying:**
@@ -506,6 +537,7 @@ Enter the GitHub repository URL (HTTPS or SSH): https://github.com/vytautas-bune
 Enter the output directory (default "/home/user/Downloads"): /path/to/output
 Enter folders to exclude (comma-separated, leave empty to include all): vendor, tests
 Enter file extensions to include (comma-separated, leave empty to include all): .go,.md
+Enter exact file names to copy (comma-separated, leave empty to copy all files): prompt.go, main.go
 Do you want to copy the output to the clipboard?
 ❯ Yes
   No
@@ -513,12 +545,10 @@ Do you want to copy the output to the clipboard?
 Cloning repository: https://github.com/vytautas-bunevicius/repo-to-txt.git
 Enumerating objects: 132, done.
 Total 132 (delta 0), reused 0 (delta 0), pack-reused 132 (from 1)
-2024/09/15 10:35:17 Skipping file .git/index: binary file
-2024/09/15 10:35:17 Skipping file .git/objects/pack/pack-df8004320515f54f375aa24042fb596aa7f3a2b3.idx: binary file
-2024/09/15 10:35:17 Skipping file .git/objects/pack/pack-df8004320515f54f375aa24042fb596aa7f3a2b3.pack: binary file
-2024/09/15 10:35:17 Skipping file repo-to-txt: binary file
-2024/09/15 10:35:17 Repository contents written to /path/to/output/repo-to-txt.txt
-2024/09/15 10:35:17 Repository contents have been copied to the clipboard.
+2024/09/15 10:35:17 Added prompt.go to /path/to/output/repo-to-txt.txt
+2024/09/15 10:35:17 Added main.go to /path/to/output/repo-to-txt.txt
+2024/09/15 10:35:17 Specified files' contents written to /path/to/output/repo-to-txt.txt
+2024/09/15 10:35:17 Specified files' contents have been copied to the clipboard.
 ```
 
 ### 5. Including Specific File Extensions and Specifying Output Directory

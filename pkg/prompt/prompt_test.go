@@ -69,14 +69,14 @@ func TestIsSSHKeyPassphraseProtected(t *testing.T) {
 	}
 }
 
-// TestDefaultSSHKeyPath verifies that the defaultSSHKeyPath function returns the correct default SSH key path.
+// TestDefaultSSHKeyPath verifies that the DefaultSSHKeyPath function returns the correct default SSH key path.
 func TestDefaultSSHKeyPath(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		t.Fatal(err)
 	}
 	expected := filepath.Join(home, ".ssh", "id_rsa")
-	if got := defaultSSHKeyPath(); got != expected {
+	if got := DefaultSSHKeyPath(); got != expected {
 		t.Errorf("defaultSSHKeyPath() = %v, want %v", got, expected)
 	}
 }

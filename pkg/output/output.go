@@ -1,5 +1,7 @@
+// === pkg/output/output.go ===
 // Package output manages the generation of the output text file containing repository contents.
-// It handles writing file contents to the output file with appropriate formatting and exclusions.
+// It handles writing file contents to the output file with appropriate formatting and exclusions,
+// as well as copying specified files to the output directory.
 package output
 
 import (
@@ -16,6 +18,49 @@ import (
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/config"
 	"github.com/vytautas-bunevicius/repo-to-txt/pkg/util"
 )
+
+// FindFiles searches for the specified file names within the repository directory.
+//
+// Parameters:
+//   - repoPath: The local path of the cloned repository.
+//   - fileNames: A slice of exact file names to search for.
+//
+// Returns:
+//   - map[string][]string: A map where the key is the file name and the value is a slice of matching file paths.
+//   - error: An error if the search fails.
+func FindFiles(repoPath string, fileNames []string) (map[string][]string, error) {
+	if len(fileNames) == 0 {
+		return nil, errors.New("no file names provided to search for")
+	}
+
+	fileMatches := make(map[string][]string)
+
+	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			// Skip paths that can't be accessed
+			log.Printf("Error accessing path %s: %v", path, err)
+			return nil
+		}
+
+		if info.IsDir() || strings.HasPrefix(info.Name(), ".") {
+			return nil // Skip directories and hidden files
+		}
+
+		for _, fileName := range fileNames {
+			if strings.EqualFold(info.Name(), fileName) {
+				fileMatches[fileName] = append(fileMatches[fileName], path)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error walking the path %s: %w", repoPath, err)
+	}
+
+	return fileMatches, nil
+}
 
 // WriteRepoContentsToFile writes the contents of the specified repository directory to an output file.
 // It traverses the repository, applies exclusion rules, and formats the output with file separators.
@@ -37,7 +82,7 @@ func WriteRepoContentsToFile(repoPath, outputFile string, cfg *config.Config) er
 	writer := bufio.NewWriter(file)
 	defer writer.Flush()
 
-	return filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("error accessing path %s: %w", path, err)
 		}
@@ -63,6 +108,12 @@ func WriteRepoContentsToFile(repoPath, outputFile string, cfg *config.Config) er
 
 		return writeFileContent(writer, relPath, content)
 	})
+
+	if err != nil {
+		return fmt.Errorf("error walking the path %s: %w", repoPath, err)
+	}
+
+	return nil
 }
 
 // shouldExcludeFile determines whether a file should be excluded based on its relative path and extension.

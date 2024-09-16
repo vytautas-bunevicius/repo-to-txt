@@ -1,3 +1,4 @@
+// === pkg/prompt/prompt.go ===
 // Package prompt manages interactive user prompts for missing configuration inputs.
 // It utilizes the huh library to create forms for collecting user input when
 // necessary configuration details are not provided via command-line flags.
@@ -9,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/charmbracelet/huh"
@@ -98,7 +100,7 @@ func PromptForMissingInputs(cfg *config.Config) error {
 		}
 	case config.AuthMethodSSH:
 		if cfg.SSHKeyPath == "" {
-			defaultSSHKey := defaultSSHKeyPath()
+			defaultSSHKey := DefaultSSHKeyPath() // Corrected to use separate function
 			sshForm := huh.NewForm(
 				huh.NewGroup(
 					huh.NewInput().
@@ -142,7 +144,7 @@ func PromptForMissingInputs(cfg *config.Config) error {
 	// Prompt for output configuration if not provided
 	if cfg.OutputDir == "" {
 		var excludeFolders, includeExt string
-		defaultOutputDir := defaultDownloadsPath()
+		defaultOutputDir := defaultDownloadsPath() // Corrected to use separate function
 		outputForm := huh.NewForm(
 			huh.NewGroup(
 				huh.NewInput().
@@ -154,7 +156,7 @@ func PromptForMissingInputs(cfg *config.Config) error {
 							cfg.OutputDir = defaultOutputDir
 							return nil
 						}
-						return nil
+						return nil // Allow user to specify a custom path without validation
 					}),
 				huh.NewInput().
 					Title("Folders to exclude (comma-separated, leave empty to include all)").
@@ -171,6 +173,25 @@ func PromptForMissingInputs(cfg *config.Config) error {
 
 		cfg.ExcludeFolders = util.ParseCommaSeparated(excludeFolders)
 		cfg.IncludeExt = util.ParseCommaSeparated(includeExt)
+	}
+
+	// Prompt for exact file names to copy if not provided
+	if len(cfg.FileNames) == 0 {
+		var filesInput string
+		filesForm := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().
+					Title("Exact file names to copy (comma-separated, leave empty to copy all files)").
+					Value(&filesInput).
+					// Replace Validate(nil) with a no-op validator
+					Validate(func(s string) error { return nil }),
+			),
+		)
+		err := filesForm.Run()
+		if err != nil {
+			return fmt.Errorf("file names input error: %w", err)
+		}
+		cfg.FileNames = util.ParseCommaSeparated(filesInput)
 	}
 
 	// Prompt for copy to clipboard if not set
@@ -194,6 +215,35 @@ func PromptForMissingInputs(cfg *config.Config) error {
 	}
 
 	return nil
+}
+
+// SelectFile prompts the user to select a file from multiple matches for a given file name.
+//
+// Parameters:
+//   - fileName: The name of the file to select.
+//   - matches: A slice of file paths that match the file name.
+//
+// Returns:
+//   - string: The selected file path.
+//   - error: An error if the selection fails.
+func SelectFile(fileName string, matches []string) (string, error) {
+	fmt.Printf("Multiple matches found for file '%s':\n", fileName)
+	for i, match := range matches {
+		fmt.Printf("  %d) %s\n", i+1, match)
+	}
+	fmt.Printf("Select the number of the file you want to include (1-%d): ", len(matches))
+
+	var choice int
+	_, err := fmt.Scanf("%d\n", &choice)
+	if err != nil {
+		return "", fmt.Errorf("invalid input: %w", err)
+	}
+
+	if choice < 1 || choice > len(matches) {
+		return "", errors.New("choice out of range")
+	}
+
+	return matches[choice-1], nil
 }
 
 // validateRepoURL validates the format of the provided GitHub repository URL.
@@ -254,16 +304,44 @@ func nonEmptyValidator(fieldName string) func(string) error {
 	}
 }
 
-// defaultSSHKeyPath returns the default path to the SSH private key.
-// It typically points to the user's home directory under .ssh/id_rsa.
-//
-// Returns:
-//   - string: The default SSH key path.
-func defaultSSHKeyPath() string {
+// defaultDownloadsPath intelligently detects the Downloads directory across different OSes.
+func defaultDownloadsPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "."
+	}
+
+	var downloads string
+
+	switch runtime.GOOS {
+	case "windows":
+		downloads = filepath.Join(home, "Downloads")
+	case "darwin", "linux":
+		xdgDownloads := os.Getenv("XDG_DOWNLOAD_DIR")
+		if xdgDownloads != "" && xdgDownloads != "$HOME/Downloads" {
+			downloads = xdgDownloads
+		} else {
+			downloads = filepath.Join(home, "Downloads")
+		}
+	default:
+		downloads = filepath.Join(home, "Downloads")
+	}
+
+	// Check if downloads directory exists, else fallback to home
+	if _, err := os.Stat(downloads); os.IsNotExist(err) {
+		downloads = home
+	}
+
+	return downloads
+}
+
+// DefaultSSHKeyPath returns the default SSH key path (e.g., ~/.ssh/id_rsa).
+func DefaultSSHKeyPath() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""
 	}
+
 	return filepath.Join(home, ".ssh", "id_rsa")
 }
 
@@ -291,17 +369,4 @@ func isSSHKeyPassphraseProtected(keyPath string) bool {
 
 	content := string(buf[:n])
 	return strings.Contains(content, "ENCRYPTED")
-}
-
-// defaultDownloadsPath returns the default path to the Downloads directory in the user's home.
-// If the home directory cannot be determined, it defaults to the current directory.
-//
-// Returns:
-//   - string: The default Downloads path.
-func defaultDownloadsPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "."
-	}
-	return filepath.Join(home, "Downloads")
 }

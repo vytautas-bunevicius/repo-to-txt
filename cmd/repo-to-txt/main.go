@@ -1,9 +1,11 @@
+// === cmd/repo-to-txt/main.go ===
 // Package main serves as the entry point for the repo-to-txt CLI tool.
 // It orchestrates the configuration parsing, user prompting, repository cloning/pulling,
 // and the generation of a text file containing the repository's contents.
 package main
 
 import (
+	"bufio" // Added bufio package
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -39,7 +41,7 @@ func main() {
 //  6. Creates a temporary directory for cloning the repository.
 //  7. Sets up the authentication method.
 //  8. Clones the repository or pulls the latest changes if it already exists locally.
-//  9. Writes the repository contents to the specified output file.
+//  9. Writes the repository contents or copies specified files to the output directory.
 //
 // 10. Optionally copies the contents to clipboard if requested.
 //
@@ -91,25 +93,111 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("error cloning/pulling repository: %w", err)
 	}
 
-	// Write the repository contents to the specified output file.
-	if err := output.WriteRepoContentsToFile(tempDir, outputFile, cfg); err != nil {
-		return fmt.Errorf("error writing repository contents to file: %w", err)
-	}
-
-	log.Printf("Repository contents written to %s", outputFile)
-
-	// Handle clipboard copy if requested
-	if cfg.CopyToClipboard {
-		content, err := ioutil.ReadFile(outputFile)
+	if len(cfg.FileNames) > 0 {
+		// Handle writing specified files' contents to outputFile
+		fileMatches, err := output.FindFiles(tempDir, cfg.FileNames)
 		if err != nil {
-			return fmt.Errorf("error reading output file for clipboard: %w", err)
+			return fmt.Errorf("error searching for specified files: %w", err)
 		}
-		if err := clipboard.WriteAll(string(content)); err != nil {
-			return fmt.Errorf("error copying to clipboard: %w", err)
+
+		// Open outputFile for writing (truncate if exists)
+		outFile, err := os.Create(outputFile)
+		if err != nil {
+			return fmt.Errorf("unable to create output file: %w", err)
 		}
-		log.Println("Repository contents have been copied to the clipboard.")
+		defer outFile.Close()
+
+		writer := bufio.NewWriter(outFile)
+		defer writer.Flush()
+
+		// Iterate over each specified file name
+		for _, fileName := range cfg.FileNames {
+			matches, exists := fileMatches[fileName]
+			if !exists || len(matches) == 0 {
+				log.Printf("No matches found for file name: %s", fileName)
+				continue
+			}
+
+			var selectedPath string
+			if len(matches) == 1 {
+				selectedPath = matches[0]
+				log.Printf("Found one match for %s: %s", fileName, selectedPath)
+			} else {
+				// Prompt user to select which file to include
+				selectedPath, err = prompt.SelectFile(fileName, matches)
+				if err != nil {
+					return fmt.Errorf("error selecting file for %s: %w", fileName, err)
+				}
+			}
+
+			// Read file content
+			content, err := ioutil.ReadFile(selectedPath)
+			if err != nil {
+				log.Printf("Failed to read file %s: %v", selectedPath, err)
+				continue
+			}
+
+			// Compute relative path
+			relPath, err := filepath.Rel(tempDir, selectedPath)
+			if err != nil {
+				log.Printf("Failed to compute relative path for %s: %v", selectedPath, err)
+				relPath = filepath.Base(selectedPath) // fallback to base name
+			}
+
+			// Write content to outputFile with separator
+			separator := fmt.Sprintf("=== %s ===\n", relPath) // include relative path
+			if _, err := writer.WriteString(separator); err != nil {
+				log.Printf("Failed to write separator to output file: %v", err)
+				continue
+			}
+			if _, err := writer.Write(content); err != nil {
+				log.Printf("Failed to write content to output file: %v", err)
+				continue
+			}
+			if _, err := writer.WriteString("\n\n"); err != nil {
+				log.Printf("Failed to write newline to output file: %v", err)
+				continue
+			}
+
+			log.Printf("Added %s to %s", selectedPath, outputFile)
+		}
+
+		// After writing all specified files
+		log.Printf("Specified files' contents written to %s", outputFile)
+
+		// Handle clipboard copy if requested
+		if cfg.CopyToClipboard {
+			content, err := ioutil.ReadFile(outputFile)
+			if err != nil {
+				return fmt.Errorf("error reading output file for clipboard: %w", err)
+			}
+			if err := clipboard.WriteAll(string(content)); err != nil {
+				return fmt.Errorf("error copying to clipboard: %w", err)
+			}
+			log.Println("Specified files' contents have been copied to the clipboard.")
+		} else {
+			log.Println("Specified files' contents were not copied to the clipboard.")
+		}
 	} else {
-		log.Println("Repository contents were not copied to the clipboard.")
+		// Write the repository contents to the specified output file.
+		if err := output.WriteRepoContentsToFile(tempDir, outputFile, cfg); err != nil {
+			return fmt.Errorf("error writing repository contents to file: %w", err)
+		}
+		log.Printf("Repository contents written to %s", outputFile)
+
+		// Handle clipboard copy if requested
+		if cfg.CopyToClipboard {
+			content, err := ioutil.ReadFile(outputFile)
+			if err != nil {
+				return fmt.Errorf("error reading output file for clipboard: %w", err)
+			}
+			if err := clipboard.WriteAll(string(content)); err != nil {
+				return fmt.Errorf("error copying to clipboard: %w", err)
+			}
+			log.Println("Repository contents have been copied to the clipboard.")
+		} else {
+			log.Println("Repository contents were not copied to the clipboard.")
+		}
 	}
 
 	return nil
